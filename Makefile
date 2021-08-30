@@ -25,6 +25,7 @@ ifneq (,$(findstring Windows,$(OS)))
   ARCH       := $(PROCESSOR_ARCHITECTURE)
   TARGET_EXT := .exe
   DEL        := del /q
+  RMDIR      := rmdir /s /q
   SEPERATOR  := $(subst /,\,/)
   MKDIR       = if not exist $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
   GREP        = 
@@ -34,6 +35,7 @@ else
   ARCH       := $(shell uname -m)
   TARGET_EXT :=
   DEL        := rm 
+  RMDIR      := rm -rf
   SEPERATOR  := /
   MKDIR       = mkdir -p $(1)
   GREP        = grep $(1) $(2) || true
@@ -51,10 +53,10 @@ STRIP        = strip
 LINKER       = c++
 C_FLAGS      = $(CFLAGS) $(DEFINES) $(INCLUDES)
 CXX_FLAGS    = $(CXXFLAGS) $(C_FLAGS)
-LINKFLAGS    = $(LFLAGS)
-STRIPFLAGS   = -S
-OBJECTS      = $(SOURCES:%=$(TEMPDIR)/.objs/%.o)
-DEPENDS      = $(OBJECTS:$(TEMPDIR)/.objs/%.o=$(TEMPDIR)/.deps/%.d)
+LINK_FLAGS   = $(LFLAGS)
+STRIP_FLAGS  = -S
+OBJECTS      = $(SOURCES:%=$(TEMP_DIR)/.objs/%.o)
+DEPENDS      = $(OBJECTS:$(TEMP_DIR)/.objs/%.o=$(TEMP_DIR)/.deps/%.d)
 BASENAME     = $(notdir $(patsubst %/,%,$(abspath ./)))
 PLATFORM     = $(UNAME)
 COMPILER     = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|GCC' | head -n 1)
@@ -73,20 +75,23 @@ PROJECT_FILE = $(BASENAME).pro
 ##  Output destinations
 
 TARGET_DIR   = bin
-TEMPDIR      = build
-TARGETBIN    = $(TARGET_DIR)/$(TARGET)$(TARGET_EXT)
+TEMP_DIR     = build
+TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(TARGET_EXT)
 
 
 ######################################################################
 ##  Build rules
 
-.PHONY: all clean debug
+.PHONY: all clean purge debug
 
-all: $(PROJECT_FILE) $(TARGETBIN) $(ADDITIONAL_DEPS)
+all: $(PROJECT_FILE) $(TARGET_BIN) $(ADDITIONAL_DEPS)
 	@$(call GREP,"TODO" $(SOURCES) $(wildcard *.h))
 
 clean:
-	$(DEL) $(subst /,$(SEPERATOR),$(OBJECTS) $(DEPENDS) $(TARGETBIN))
+	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(OBJECTS) $(DEPENDS) $(TARGET_BIN)))
+
+purge:
+	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR)
 
 debug:
 	@echo BASENAME     = $(BASENAME)
@@ -110,19 +115,19 @@ $(PROJECT_FILE):
 
 .SUFFIXES: .cpp .c
 
-$(TEMPDIR)/.deps/%.cpp.d: %.cpp
+$(TEMP_DIR)/.deps/%.cpp.d: %.cpp
 	$(call MKDIR,$(dir $@))
-	$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMPDIR)/.objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
+	$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/.objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
 
-$(TEMPDIR)/.deps/%.c.d: %.c
+$(TEMP_DIR)/.deps/%.c.d: %.c
 	$(call MKDIR,$(dir $@))
-	$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMPDIR)/.objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
+	$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/.objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
 
-$(TEMPDIR)/.objs/%.cpp.o: %.cpp $(TEMPDIR)/.deps/%.cpp.d
+$(TEMP_DIR)/.objs/%.cpp.o: %.cpp $(TEMP_DIR)/.deps/%.cpp.d
 	$(call MKDIR,$(dir $@))
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
-$(TEMPDIR)/.objs/%.c.o: %.c $(TEMPDIR)/.deps/%.c.d
+$(TEMP_DIR)/.objs/%.c.o: %.c $(TEMP_DIR)/.deps/%.c.d
 	$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
@@ -130,9 +135,9 @@ $(TEMPDIR)/.objs/%.c.o: %.c $(TEMPDIR)/.deps/%.c.d
 ######################################################################
 ##  Compile target
 
-$(TARGETBIN): $(OBJECTS) $(DEPENDS)
+$(TARGET_BIN): $(OBJECTS) $(DEPENDS)
 	$(call MKDIR,$(dir $@))
-	$(LINKER) $(LINKFLAGS) $(OBJECTS) -o $@
+	$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@
 	$(STRIP) -S $@
 
 -include $(DEPENDS)
