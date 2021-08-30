@@ -151,35 +151,35 @@ $(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
 .SUFFIXES: .cpp .c
 
 $(TEMP_DIR)/release/deps/%.cpp.d: %.cpp
-	$(call MKDIR,$(dir $@))
-	$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/release/objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(call MKDIR,$(dir $@))
+	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/release/objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
 
 $(TEMP_DIR)/debug/deps/%.cpp.d: %.cpp
-	$(call MKDIR,$(dir $@))
-	$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/debug/objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(call MKDIR,$(dir $@))
+	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/debug/objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
 
 $(TEMP_DIR)/release/deps/%.c.d: %.c
-	$(call MKDIR,$(dir $@))
-	$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/release/objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(call MKDIR,$(dir $@))
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/release/objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
 
 $(TEMP_DIR)/debug/deps/%.c.d: %.c
-	$(call MKDIR,$(dir $@))
-	$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/debug/objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(call MKDIR,$(dir $@))
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/debug/objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
 
 $(TEMP_DIR)/release/objs/%.cpp.o: %.cpp $(TEMP_DIR)/release/deps/%.cpp.d
-	$(call MKDIR,$(dir $@))
+	@$(call MKDIR,$(dir $@))
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
 $(TEMP_DIR)/debug/objs/%.cpp.o: %.cpp $(TEMP_DIR)/debug/deps/%.cpp.d
-	$(call MKDIR,$(dir $@))
+	@$(call MKDIR,$(dir $@))
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
 $(TEMP_DIR)/release/objs/%.c.o: %.c $(TEMP_DIR)/release/deps/%.c.d
-	$(call MKDIR,$(dir $@))
+	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
 $(TEMP_DIR)/debug/objs/%.c.o: %.c $(TEMP_DIR)/debug/deps/%.c.d
-	$(call MKDIR,$(dir $@))
+	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
 
@@ -187,12 +187,12 @@ $(TEMP_DIR)/debug/objs/%.c.o: %.c $(TEMP_DIR)/debug/deps/%.c.d
 ##  Compile target
 
 $(TARGET_BIN): $(OBJECTS) $(DEPENDS)
-	$(call MKDIR,$(dir $@))
+	@$(call MKDIR,$(dir $@))
 	$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@
 	$(STRIP) -S $@
 
 $(TARGET_D_BIN): $(OBJECTS_D) $(DEPENDS_D)
-	$(call MKDIR,$(dir $@))
+	@$(call MKDIR,$(dir $@))
 	$(LINKER) $(LINK_FLAGS) $(OBJECTS_D) -o $@
 
 -include $(DEPENDS)
