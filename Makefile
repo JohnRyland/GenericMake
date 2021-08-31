@@ -85,8 +85,11 @@ BASENAME      = $(notdir $(patsubst %/,%,$(abspath ./)))
 PLATFORM      = $(UNAME)
 COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|GCC' | head -n 1)
 COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
-MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))))))
+MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))))
 PROJECT_FILE  = $(BASENAME).pro
+
+# Allow variables to be expanded again on a second pass
+.SECONDEXPANSION:
 
 
 ######################################################################
@@ -108,13 +111,8 @@ TAGS         = $(TEMP_DIR)/tags
 ######################################################################
 ##  Build rules
 
-.PHONY: all clean purge info debug release
-
 all: $(PROJECT_FILE) $(TAGS) $(TARGET_BIN) $(ADDITIONAL_DEPS)
 	@$(call GREP,"TODO" $(SOURCES) $(wildcard *.h))
-
-clean:
-	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(OBJECTS_D) $(DEPENDS) $(DEPENDS_D) $(TARGET_D_BIN) $(TARGET_BIN)))
 
 purge:
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR)
@@ -122,15 +120,6 @@ purge:
 debug: $(TAGS) $(TARGET_D_BIN)
 	@echo Running $(TARGET_D_BIN) ...
 	@$(TARGET_D_BIN) --debug && echo PASSED
-
-info:
-	@echo BASENAME     = $(BASENAME)
-	@echo MAKEFILE_DIR = $(MAKEFILE_DIR)
-	@echo PROJECT_FILE = $(PROJECT_FILE)
-	@echo PLATFORM     = $(PLATFORM)
-	@echo ARCH         = $(ARCH)
-	@echo COMPILER     = $(COMPILER)
-	@echo VERSION      = $(COMPILER_VER)
 
 $(PROJECT_FILE):
 	@echo TARGET       = $(BASENAME)> $@
@@ -153,7 +142,7 @@ $(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
 
 $(TEMP_DIR)/release/deps/%.cpp.d: %.cpp
 	@$(call MKDIR,$(dir $@))
-	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/release/objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/release/objs/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
 
 $(TEMP_DIR)/debug/deps/%.cpp.d: %.cpp
 	@$(call MKDIR,$(dir $@))
@@ -161,7 +150,7 @@ $(TEMP_DIR)/debug/deps/%.cpp.d: %.cpp
 
 $(TEMP_DIR)/release/deps/%.c.d: %.c
 	@$(call MKDIR,$(dir $@))
-	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/release/objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/release/objs/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
 
 $(TEMP_DIR)/debug/deps/%.c.d: %.c
 	@$(call MKDIR,$(dir $@))
@@ -198,4 +187,96 @@ $(TARGET_D_BIN): $(OBJECTS_D) $(DEPENDS_D)
 
 -include $(DEPENDS)
 -include $(DEPENDS_D)
+
+
+######################################################################
+##  Vim integrations
+
+define generate_tree_items
+	@printf '$(2)'
+	$(eval ITEMS := $(3))
+	$(eval LAST := $(if $(ITEMS),$(word $(words $(ITEMS)), $(ITEMS)),))
+  @printf '$(foreach F, $(ITEMS),\n$(1) $(if $(filter $F,$(LAST)),┗━,┣━) $(notdir $F) \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t $(abspath $F))\n'
+endef
+
+project:
+	@printf '$(PROJECT)\n┃\n'
+	$(call generate_tree_items,┃ ,┣━ Targets,    $(filter %,$(TARGET)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.cpp,$^))
+	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter-out /%,$(filter %.h,$^)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)))
+	$(call generate_tree_items,  ,┃\n┗━ Project, $(wildcard $(filter-out %.d,$(MAKEFILE_LIST))))
+
+vim_project_support:
+	@printf '$(if $(PROJECT),true,false)\n'
+
+# Output the user search paths (for vim/editor integration)
+paths:
+	@echo $(INCLUDES)
+
+# Output the searched system paths the compiler will use (for vim/editor integration)
+system_paths:
+	@echo | $(CXX) -Wp,-v -x c++ - -fsyntax-only 2>&1 | grep "^ " | grep -v "(" | tr -d "\n"
+
+dependancies:
+	@echo $(patsubst %,\'%\',$^)
+
+lldb-nvim.json: $(PROJECT_FILE)
+	@echo ' {' > $@
+	@echo '   "variables": { "target": "'$(TARGET_D_BIN)'" },' >> $@
+	@echo '   "modes": { "code": {}, "debug": { ' >> $@
+	@echo '      "setup": [ "target create {target}", [ "bp", "set" ] ], "teardown": [ [ "bp", "save" ], "target delete" ] ' >> $@
+	@echo '   } },' >> $@
+	@echo '   "breakpoints": { "@ll": [ ] }' >> $@
+	@echo ' }' >> $@
+
+
+######################################################################
+##  Target management
+
+FAKE_TARGETS = debug release profile clean purge verify help all info project paths system_paths dependancies null
+MAKE_TARGETS = $(MAKE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "build/"
+REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
+
+null:
+
+verify: test-report.txt
+	@echo ""
+	@echo " Test Results:"
+	@echo "   PASS count: "`grep -c "PASS" test-report.txt`
+	@echo "   FAIL count: "`grep -c "FAIL" test-report.txt`
+	@echo ""
+
+help:
+	@echo ""
+	@echo " Usage:"
+	@echo "   $(MAKE) [target]"
+	@echo ""
+	@echo " Targets:"
+	@echo "   "`$(MAKE_TARGETS)`
+	@echo ""
+
+info:
+	@echo ""
+	@echo " Info:"
+	@echo "   BASENAME     = $(BASENAME)"
+	@echo "   MAKEFILE_DIR = $(MAKEFILE_DIR)"
+	@echo "   PROJECT_FILE = $(PROJECT_FILE)"
+	@echo "   PLATFORM     = $(PLATFORM)"
+	@echo "   ARCH         = $(ARCH)"
+	@echo "   COMPILER     = $(COMPILER)"
+	@echo "   VERSION      = $(COMPILER_VER)"
+	@echo ""
+	@echo " Make targets:"
+	@echo "   "`$(MAKE_TARGETS)`
+	@echo " Real targets:"
+	@echo "   "`$(REAL_TARGETS)`
+	@echo " Fake targets:"
+	@echo "   $(FAKE_TARGETS)"
+	@echo ""
+
+clean:
+	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(OBJECTS_D) $(DEPENDS) $(DEPENDS_D) $(TARGET_D_BIN) $(TARGET_BIN)))
+
+.PHONY: $(FAKE_TARGETS)
 
