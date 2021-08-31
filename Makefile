@@ -122,6 +122,7 @@ debug: $(TAGS) $(TARGET_D_BIN)
 	@$(TARGET_D_BIN) --debug && echo PASSED
 
 $(PROJECT_FILE):
+	@echo PROJECT      = $(BASENAME)> $@
 	@echo TARGET       = $(BASENAME)> $@
 	@echo SOURCES      = $(wildcard *.c *.cpp)>> $@
 	@echo DEFINES      = >> $@
