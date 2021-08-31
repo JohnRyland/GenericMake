@@ -120,7 +120,8 @@ purge:
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR)
 
 debug: $(TAGS) $(TARGET_D_BIN)
-	$(TARGET_D_BIN) --debug
+	@echo Running $(TARGET_D_BIN) ...
+	@$(TARGET_D_BIN) --debug && echo PASSED
 
 info:
 	@echo BASENAME     = $(BASENAME)
