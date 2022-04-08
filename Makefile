@@ -123,8 +123,9 @@ debug: $(TAGS) $(TARGET_D_BIN)
 
 $(PROJECT_FILE):
 	@echo PROJECT      = $(BASENAME)> $@
-	@echo TARGET       = $(BASENAME)> $@
+	@echo TARGET       = $(BASENAME)>> $@
 	@echo SOURCES      = $(wildcard *.c *.cpp)>> $@
+	@echo DOCS         = $(wildcard *.md *.txt *.html)>> $@
 	@echo DEFINES      = >> $@
 	@echo INCLUDES     = >> $@
 	@echo LIBRARIES    = m>> $@
@@ -203,9 +204,9 @@ endef
 project:
 	@printf '$(PROJECT)\n┃\n'
 	$(call generate_tree_items,┃ ,┣━ Targets,    $(filter %,$(TARGET)))
-	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.cpp,$^))
-	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter-out /%,$(filter %.h,$^)))
-	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c,$^) $(filter %.cpp,$^))
+	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter-out /%,$(filter %.h,$^) $(filter %.hpp,$^)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)) $(filter %.txt,$(DOCS)) $(filter %.html,$(DOCS)))
 	$(call generate_tree_items,  ,┃\n┗━ Project, $(wildcard $(filter-out %.d,$(MAKEFILE_LIST))))
 
 vim_project_support:
