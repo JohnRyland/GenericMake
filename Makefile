@@ -134,7 +134,8 @@ $(PROJECT_FILE):
 	@echo LFLAGS       = >> $@
 
 $(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
-	$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL)
+	@echo Updating tags
+	@$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL)
 
 
 ######################################################################
