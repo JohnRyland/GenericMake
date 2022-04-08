@@ -2,7 +2,7 @@
 ##  Copyright
 
 #  Universal Simple Makefile
-#  (C) Copyright 2017-2021
+#  (C) Copyright 2017-2022
 #  John Ryland
 #  
 #  Redistribution and use in source and binary forms, with or without
@@ -81,12 +81,15 @@ OBJECTS       = $(SOURCES:%=$(TEMP_DIR)/release/objs/%.o)
 OBJECTS_D     = $(SOURCES:%=$(TEMP_DIR)/debug/objs/%.o)
 DEPENDS       = $(OBJECTS:$(TEMP_DIR)/release/objs/%.o=$(TEMP_DIR)/release/deps/%.d)
 DEPENDS_D     = $(OBJECTS_D:$(TEMP_DIR)/debug/objs/%.o=$(TEMP_DIR)/debug/deps/%.d)
-BASENAME      = $(notdir $(patsubst %/,%,$(abspath ./)))
+CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
+BASENAME      = $(notdir $(CURRENT_DIR))
 PLATFORM      = $(UNAME)
 COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|GCC' | head -n 1)
 COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
-MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))))
+MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
+MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 PROJECT_FILE  = $(BASENAME).pro
+BUILD_TYPE    = release
 
 # Allow variables to be expanded again on a second pass
 .SECONDEXPANSION:
@@ -102,7 +105,7 @@ PROJECT_FILE  = $(BASENAME).pro
 ##  Output destinations
 
 TARGET_DIR   = bin
-TEMP_DIR     = build
+TEMP_DIR     = .build
 TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(TARGET_EXT)
 TARGET_D_BIN = $(TARGET_DIR)/$(TARGET)_d$(TARGET_EXT)
 TAGS         = $(TEMP_DIR)/tags
@@ -120,9 +123,16 @@ purge:
 	@echo ---- Purging --------------------------------------------------------------------------------------
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR)
 
+debug: BUILD_TYPE:=debug
 debug: $(TAGS) $(TARGET_D_BIN)
 	@echo ---- Running $(TARGET_D_BIN) ----------------------------------------------------------------------
 	@$(TARGET_D_BIN) --debug && echo PASSED
+
+release: BUILD_TYPE:=release
+release: $(TAGS) $(TARGET_BIN)
+
+profile: BUILD_TYPE:=profile
+profile: $(TAGS) $(TARGET_BIN)
 
 $(PROJECT_FILE):
 	@echo PROJECT      = $(BASENAME)> $@
@@ -182,20 +192,17 @@ $(TEMP_DIR)/debug/objs/%.c.o: %.c $(TEMP_DIR)/debug/deps/%.c.d
 ######################################################################
 ##  Compile target
 
-compiling_release:
-	@echo ---- Compiling release build ----------------------------------------------------------------------
+compiling:
+	@echo ---- Compiling $(BUILD_TYPE) build ----------------------------------------------------------------------
 
-$(TARGET_BIN): compiling_release $(OBJECTS) $(DEPENDS)
+$(TARGET_BIN): compiling $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@echo ---- Linking --------------------------------------------------------------------------------------
 	$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@
 	$(STRIP) -S $@
 	@echo ---- Finished compiling release build -------------------------------------------------------------
 
-compiling_debug:
-	@echo ---- Compiling debug build ------------------------------------------------------------------------
-
-$(TARGET_D_BIN): compiling_debug $(OBJECTS_D) $(DEPENDS_D)
+$(TARGET_D_BIN): compiling $(OBJECTS_D) $(DEPENDS_D)
 	@$(call MKDIR,$(dir $@))
 	@echo ---- Linking --------------------------------------------------------------------------------------
 	$(LINKER) $(LINK_FLAGS) $(OBJECTS_D) -o $@
@@ -206,7 +213,20 @@ $(TARGET_D_BIN): compiling_debug $(OBJECTS_D) $(DEPENDS_D)
 
 
 ######################################################################
-##  Vim integrations
+##  Editor integrations
+
+# 'editor integrations' are make targets that my vim settings use. These
+# can be found here:
+#
+#   https://github.com/JohnRyland/VimSettings.git
+#
+# It detects if the makefile contains these special targets by running
+#
+#   make vim_project_support
+#
+# The targets then help to tell vim where to search for includes,
+# other files in the project, debugging options etc. Possibly other
+# editors might be able to be configured to do something similar.
 
 define generate_tree_items
 	@printf '$(2)'
@@ -250,8 +270,8 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile clean purge verify help all info project paths system_paths dependancies null compiling_debug compiling_release
-MAKE_TARGETS = $(MAKE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "build/"
+FAKE_TARGETS = debug release profile clean purge verify help all info project paths system_paths dependancies null compiling
+MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
 null:
