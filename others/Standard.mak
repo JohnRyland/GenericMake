@@ -24,7 +24,7 @@
 #     VERSION_MINOR = 0
 #
 #     # The important part, including the generic set of Makefile rules
-#     include ../Makefile.inc
+#     include ../Makefile.mak
 #
 
 

@@ -1,5 +1,5 @@
 #
-#  Simple.inc
+#  Simple.mak
 #  (C) Copyright 2017-2021
 #  John Ryland
 #
@@ -16,7 +16,7 @@
 #  TARGET = MyApp
 #  SOURCES = myapp.cpp classA.cpp classB.cpp
 #  CFLAGS = -I.
-#  -include Simple.inc
+#  -include Simple.mak
 #
 
 OBJECTS = $(patsubst %.cpp, build/.objs/%.o, $(SOURCES))
