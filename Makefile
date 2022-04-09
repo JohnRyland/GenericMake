@@ -150,13 +150,13 @@ build_and_run: build run done
 release: build strip done
 
 debug:
-	$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS=-g BUILD_TYPE_SUFFIX=_d build_and_run
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS=-g BUILD_TYPE_SUFFIX=_d build_and_run
 
 profile:
-	$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-g -DNDEBUG" BUILD_TYPE_SUFFIX=_p build_and_run
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-g -DNDEBUG" BUILD_TYPE_SUFFIX=_p build_and_run
 
 test:
-	$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-g -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify done
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-g -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify done
 
 $(PROJECT_FILE):
 	@echo PROJECT      = $(BASENAME)> $@
