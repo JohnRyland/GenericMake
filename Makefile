@@ -71,16 +71,13 @@ LINK          = c++
 STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
-C_FLAGS       = $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
+C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(LIBRARIES:%=-l%)
 STRIP_FLAGS   = -S
-DEBUG_FLAGS   = -g
-RELEASE_FLAGS = -DNDEBUG
-OBJECTS       = $(SOURCES:%=$(TEMP_DIR)/release/objs/%.o)
-OBJECTS_D     = $(SOURCES:%=$(TEMP_DIR)/debug/objs/%.o)
-DEPENDS       = $(OBJECTS:$(TEMP_DIR)/release/objs/%.o=$(TEMP_DIR)/release/deps/%.d)
-DEPENDS_D     = $(OBJECTS_D:$(TEMP_DIR)/debug/objs/%.o=$(TEMP_DIR)/debug/deps/%.d)
+OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
+OBJECTS       = $(SOURCES:%=$(OUTPUT_DIR)/objs/%.o)
+DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
 PLATFORM      = $(UNAME)
@@ -89,10 +86,16 @@ COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 PROJECT_FILE  = $(BASENAME).pro
-BUILD_TYPE    = release
 
-# Allow variables to be expanded again on a second pass
-.SECONDEXPANSION:
+
+######################################################################
+##  Build type options (overridden for different build types)
+
+BUILD_TYPE        = release
+BUILD_TYPE_FLAGS  = -DNDEBUG
+BUILD_TYPE_SUFFIX =
+
+all: release
 
 
 ######################################################################
@@ -100,39 +103,60 @@ BUILD_TYPE    = release
 
 -include $(PROJECT_FILE)
 
+# Allow variables to be expanded again on a second pass
+.SECONDEXPANSION:
+
 
 ######################################################################
 ##  Output destinations
 
 TARGET_DIR   = bin
 TEMP_DIR     = .build
-TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(TARGET_EXT)
-TARGET_D_BIN = $(TARGET_DIR)/$(TARGET)_d$(TARGET_EXT)
+TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(BUILD_TYPE_SUFFIX)$(TARGET_EXT)
 TAGS         = $(TEMP_DIR)/tags
+TEST_REPORT  = $(TEMP_DIR)/test-report.txt
+TEST_XML_DIR = $(TEMP_DIR)/Testing
 
 
 ######################################################################
 ##  Build rules
 
-all: $(PROJECT_FILE) $(TAGS) $(TARGET_BIN) $(ADDITIONAL_DEPS)
-	@echo ---- Finding TODOs --------------------------------------------------------------------------------
-	@$(call GREP,"TODO" $(SOURCES) $(wildcard *.h))
+compiling:
+	@echo ---- Compiling $(BUILD_TYPE) build ----------------------------------------------------------------------
+
+strip: $(TARGET_BIN)
+	@echo ---- Stripping $(TARGET_BIN) ----------------------------------------------------------------------
+	$(STRIP) -S $(TARGET_BIN)
+
+run: $(TARGET_BIN)
+	@echo ---- Running $(TARGET_BIN) ----------------------------------------------------------------------
+	@$(TARGET_BIN) --debug && echo PASSED
+
+todos:
+	@echo ---- finding todos --------------------------------------------------------------------------------
+	@$(call grep,"todo" $(sources) $(wildcard *.h))
+
+done:
 	@echo ---- Done -----------------------------------------------------------------------------------------
 
 purge:
 	@echo ---- Purging --------------------------------------------------------------------------------------
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR)
 
-debug: BUILD_TYPE:=debug
-debug: $(TAGS) $(TARGET_D_BIN)
-	@echo ---- Running $(TARGET_D_BIN) ----------------------------------------------------------------------
-	@$(TARGET_D_BIN) --debug && echo PASSED
+build: $(PROJECT_FILE) $(TAGS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
-release: BUILD_TYPE:=release
-release: $(TAGS) $(TARGET_BIN)
+build_and_run: build run done
 
-profile: BUILD_TYPE:=profile
-profile: $(TAGS) $(TARGET_BIN)
+release: build strip done
+
+debug:
+	$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS=-g BUILD_TYPE_SUFFIX=_d build_and_run
+
+profile:
+	$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-g -DNDEBUG" BUILD_TYPE_SUFFIX=_p build_and_run
+
+test:
+	$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-g -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify done
 
 $(PROJECT_FILE):
 	@echo PROJECT      = $(BASENAME)> $@
@@ -156,35 +180,19 @@ $(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
 
 .SUFFIXES: .cpp .c
 
-$(TEMP_DIR)/release/deps/%.cpp.d: %.cpp
+$(OUTPUT_DIR)/deps/%.cpp.d: %.cpp
 	@$(call MKDIR,$(dir $@))
-	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/release/objs/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
+	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(OUTPUT_DIR)/objs/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
 
-$(TEMP_DIR)/debug/deps/%.cpp.d: %.cpp
+$(OUTPUT_DIR)/deps/%.c.d: %.c
 	@$(call MKDIR,$(dir $@))
-	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(TEMP_DIR)/debug/objs/%.cpp.o, $<) -MD -E $< -MF $@ > $(NULL)
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OUTPUT_DIR)/objs/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
 
-$(TEMP_DIR)/release/deps/%.c.d: %.c
-	@$(call MKDIR,$(dir $@))
-	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/release/objs/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
-
-$(TEMP_DIR)/debug/deps/%.c.d: %.c
-	@$(call MKDIR,$(dir $@))
-	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(TEMP_DIR)/debug/objs/%.c.o, $<) -MD -E $< -MF $@ > $(NULL)
-
-$(TEMP_DIR)/release/objs/%.cpp.o: %.cpp $(TEMP_DIR)/release/deps/%.cpp.d
+$(OUTPUT_DIR)/objs/%.cpp.o: %.cpp $(OUTPUT_DIR)/deps/%.cpp.d
 	@$(call MKDIR,$(dir $@))
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
-$(TEMP_DIR)/debug/objs/%.cpp.o: %.cpp $(TEMP_DIR)/debug/deps/%.cpp.d
-	@$(call MKDIR,$(dir $@))
-	$(CXX) $(CXX_FLAGS) -c $< -o $@
-
-$(TEMP_DIR)/release/objs/%.c.o: %.c $(TEMP_DIR)/release/deps/%.c.d
-	@$(call MKDIR,$(dir $@))
-	$(CC) $(C_FLAGS) -c $< -o $@
-
-$(TEMP_DIR)/debug/objs/%.c.o: %.c $(TEMP_DIR)/debug/deps/%.c.d
+$(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
@@ -192,24 +200,26 @@ $(TEMP_DIR)/debug/objs/%.c.o: %.c $(TEMP_DIR)/debug/deps/%.c.d
 ######################################################################
 ##  Compile target
 
-compiling:
-	@echo ---- Compiling $(BUILD_TYPE) build ----------------------------------------------------------------------
-
-$(TARGET_BIN): compiling $(OBJECTS) $(DEPENDS)
+$(TARGET_BIN): $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@echo ---- Linking --------------------------------------------------------------------------------------
 	$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@
-	$(STRIP) -S $@
-	@echo ---- Finished compiling release build -------------------------------------------------------------
-
-$(TARGET_D_BIN): compiling $(OBJECTS_D) $(DEPENDS_D)
-	@$(call MKDIR,$(dir $@))
-	@echo ---- Linking --------------------------------------------------------------------------------------
-	$(LINKER) $(LINK_FLAGS) $(OBJECTS_D) -o $@
-	@echo ---- Finished compiling debug build ---------------------------------------------------------------
+	@echo ---- Finished compiling $(BUILD_TYPE) build ---------------------------------------------------------------
 
 -include $(DEPENDS)
--include $(DEPENDS_D)
+
+
+######################################################################
+##  Run unit tests
+
+$(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
+	@mkdir -p $(dir $@)
+	@echo Running $(patsubst $(TEST_XML_DIR)/%.xml,%,$@) unit test
+	@$< --filter=$(patsubst $(TEST_XML_DIR)/%.xml,%,$@) --output=$@
+	@echo -------------------------------------------------
+
+$(TEST_REPORT): $(TARGET_BIN)
+	@make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@
 
 
 ######################################################################
@@ -259,7 +269,7 @@ dependancies:
 
 lldb-nvim.json: $(PROJECT_FILE)
 	@echo ' {' > $@
-	@echo '   "variables": { "target": "'$(TARGET_D_BIN)'" },' >> $@
+	@echo '   "variables": { "target": "'$(TARGET_BIN)'" },' >> $@
 	@echo '   "modes": { "code": {}, "debug": { ' >> $@
 	@echo '      "setup": [ "target create {target}", [ "bp", "set" ] ], "teardown": [ [ "bp", "save" ], "target delete" ] ' >> $@
 	@echo '   } },' >> $@
@@ -270,17 +280,17 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile clean purge verify help all info project paths system_paths dependancies null compiling
+FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run
 MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
 null:
 
-verify: test-report.txt
+verify: $(TEST_REPORT)
 	@echo ""
 	@echo " Test Results:"
-	@echo "   PASS count: "`grep -c "PASS" test-report.txt`
-	@echo "   FAIL count: "`grep -c "FAIL" test-report.txt`
+	@echo "   PASS count: "`grep -c "PASS" $<`
+	@echo "   FAIL count: "`grep -c "FAIL" $<`
 	@echo ""
 
 help:
@@ -312,7 +322,7 @@ info:
 	@echo ""
 
 clean:
-	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(OBJECTS_D) $(DEPENDS) $(DEPENDS_D) $(TARGET_D_BIN) $(TARGET_BIN)))
+	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(DEPENDS) $(TARGET_BIN)))
 
 .PHONY: $(FAKE_TARGETS)
 
