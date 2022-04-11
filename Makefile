@@ -120,6 +120,34 @@ TEST_XML_DIR = $(TEMP_DIR)/Testing
 
 
 ######################################################################
+##  Package/Module management
+
+# Rules for getting git modules
+$(MODULES_DIR)/%/.git:
+	@echo "Fetching module: $(@:$(MODULES_DIR)/%/.git=%)"
+	@git clone $(filter %$(@:$(MODULES_DIR)/%/.git=%.git),$(MODULES)) $(@:%/.git=%) 2> /dev/null
+
+# Rules for downloading .tar.gz modules
+.cache/%.tar.gz:
+	@echo "Downloading module: $(@:.cache/%.tar.gz=%)"
+	@curl -L $(filter %$(@:.cache/%=%),$(MODULES)) --create-dirs -o $@ 2> /dev/null
+
+# Rules for extracting .tar.gz modules
+$(MODULES_DIR)/%/.extracted.tar.gz: .cache/%.tar.gz
+	@echo "Extracting module: $(@:$(MODULES_DIR)/%/.extracted.tar.gz=%)"
+	@mkdir -p $(MODULES_DIR) ; cd $(MODULES_DIR) ; tar zxf $(@:$(MODULES_DIR)/%/.extracted.tar.gz=../.cache/%.tar.gz)
+	@touch $@
+
+# Fetches module dependencies (including build system) if not already retrieved. Avoids using
+# git submodules (can be a pain to keep updated), modules should be orthogonal to the versioning
+# system, so there shouldn't be a requirement to use git for either the module or parent project.
+GIT_MODULES=$(filter %.git,$(patsubst %.git,$(MODULES_DIR)/%/.git,$(notdir $(MODULES))))                     # Dependencies on git modules
+TGZ_MODULES=$(filter %.tar.gz,$(patsubst %.tar.gz,$(MODULES_DIR)/%/.extracted.tar.gz,$(notdir $(MODULES))))  # Dependencies on .tar.gz modules
+
+MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
+
+
+######################################################################
 ##  Build rules
 
 compiling:
@@ -144,7 +172,10 @@ purge:
 	@echo ---- Purging --------------------------------------------------------------------------------------
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR) $(MODULES_DIR)
 
-build: $(PROJECT_FILE) $(TAGS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+modules:
+	@echo ---- Modules --------------------------------------------------------------------------------------
+
+build: $(PROJECT_FILE) $(TAGS) modules $(MODULES_DEPS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
 build_and_run: build run done
 
@@ -276,34 +307,6 @@ lldb-nvim.json: $(PROJECT_FILE)
 	@echo '   } },' >> $@
 	@echo '   "breakpoints": { "@ll": [ ] }' >> $@
 	@echo ' }' >> $@
-
-
-######################################################################
-##  Package/Module management
-
-# Rules for getting git modules
-$(MODULES_DIR)/%/.git:
-	@echo "Fetching module: $(@:$(MODULES_DIR)/%/.git=%)"
-	@git clone $(filter %$(@:$(MODULES_DIR)/%/.git=%.git),$(MODULES)) $(@:%/.git=%) 2> /dev/null
-
-# Rules for downloading .tar.gz modules
-.cache/%.tar.gz:
-	@echo "Downloading module: $(@:.cache/%.tar.gz=%)"
-	@curl -L $(filter %$(@:.cache/%=%),$(MODULES)) --create-dirs -o $@ 2> /dev/null
-
-# Rules for extracting .tar.gz modules
-$(MODULES_DIR)/%/.extracted.tar.gz: .cache/%.tar.gz
-	@echo "Extracting module: $(@:$(MODULES_DIR)/%/.extracted.tar.gz=%)"
-	@mkdir -p $(MODULES_DIR) ; cd $(MODULES_DIR) ; tar zxf $(@:$(MODULES_DIR)/%/.extracted.tar.gz=../.cache/%.tar.gz)
-	@touch $@
-
-# Fetches module dependencies (including build system) if not already retrieved. Avoids using
-# git submodules (can be a pain to keep updated), modules should be orthogonal to the versioning
-# system, so there shouldn't be a requirement to use git for either the module or parent project.
-GIT_MODULES=$(filter %.git,$(patsubst %.git,$(MODULES_DIR)/%/.git,$(notdir $(MODULES))))                     # Dependencies on git modules
-TGZ_MODULES=$(filter %.tar.gz,$(patsubst %.tar.gz,$(MODULES_DIR)/%/.extracted.tar.gz,$(notdir $(MODULES))))  # Dependencies on .tar.gz modules
-
-MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 
 
 ######################################################################
