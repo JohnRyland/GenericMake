@@ -3,9 +3,7 @@
 
 # tmp
 .tmp
-
-# Built executable
-real-time_scheduler
+.modules
 
 # Prerequisites
 *.d
