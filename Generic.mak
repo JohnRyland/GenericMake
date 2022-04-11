@@ -155,7 +155,7 @@ compiling:
 
 strip: $(TARGET_BIN)
 	@echo ---- Stripping $(TARGET_BIN) ----------------------------------------------------------------------
-	$(STRIP) -S $(TARGET_BIN)
+	@$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
 
 run: $(TARGET_BIN)
 	@echo ---- Running $(TARGET_BIN) ----------------------------------------------------------------------
@@ -204,7 +204,7 @@ $(PROJECT_FILE):
 
 $(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
 	@echo ---- Updating tags --------------------------------------------------------------------------------
-	@$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL)
+	@$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),)
 
 
 ######################################################################
@@ -235,7 +235,7 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@echo ---- Linking --------------------------------------------------------------------------------------
-	$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@
+	@$(if $(OBJECTS),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
 	@echo ---- Finished compiling $(BUILD_TYPE) build ---------------------------------------------------------------
 
 -include $(DEPENDS)
