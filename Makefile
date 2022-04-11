@@ -175,7 +175,7 @@ purge:
 modules:
 	@echo ---- Modules --------------------------------------------------------------------------------------
 
-build: $(PROJECT_FILE) $(TAGS) modules $(MODULES_DEPS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+build: $(PROJECT_FILE) $(TAGS) modules $(MODULE_DEPS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
 build_and_run: build run done
 
