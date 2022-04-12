@@ -71,7 +71,7 @@ LINK          = c++
 STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
-DOCGEN        = pandoc
+DOCGEN        = pandoc -f markdown_mmd
 C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(LIBRARIES:%=-l%)
