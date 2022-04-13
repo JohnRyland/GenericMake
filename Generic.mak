@@ -71,6 +71,7 @@ LINK          = c++
 STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
+DOCGEN        = pandoc -f markdown_mmd
 C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(LIBRARIES:%=-l%)
@@ -78,6 +79,7 @@ STRIP_FLAGS   = -S
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
 OBJECTS       = $(SOURCES:%=$(OUTPUT_DIR)/objs/%.o)
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
+PDFS          = $(patsubst %.md,docs/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
 PLATFORM      = $(UNAME)
@@ -155,14 +157,14 @@ compiling:
 
 strip: $(TARGET_BIN)
 	@echo ---- Stripping $(TARGET_BIN) ----------------------------------------------------------------------
-	$(STRIP) -S $(TARGET_BIN)
+	@$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
 
 run: $(TARGET_BIN)
 	@echo ---- Running $(TARGET_BIN) ----------------------------------------------------------------------
 	@$(TARGET_BIN) --debug && echo PASSED
 
 todos:
-	@echo ---- finding todos --------------------------------------------------------------------------------
+	@echo ---- Finding todos --------------------------------------------------------------------------------
 	@$(call grep,"todo" $(sources) $(wildcard *.h))
 
 done:
@@ -175,7 +177,10 @@ purge:
 modules:
 	@echo ---- Modules --------------------------------------------------------------------------------------
 
-build: $(PROJECT_FILE) $(TAGS) modules $(MODULE_DEPS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+docs: 
+	@echo ---- Documentation --------------------------------------------------------------------------------
+
+build: $(PROJECT_FILE) $(TAGS) modules $(MODULE_DEPS) docs $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
 build_and_run: build run done
 
@@ -204,7 +209,7 @@ $(PROJECT_FILE):
 
 $(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
 	@echo ---- Updating tags --------------------------------------------------------------------------------
-	@$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL)
+	@$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),)
 
 
 ######################################################################
@@ -228,6 +233,10 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
+docs/%.pdf: %.md $(DOC_TEMPLATE)
+	@$(call MKDIR,$(dir $@))
+	$(DOCGEN) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@
+
 
 ######################################################################
 ##  Compile target
@@ -235,7 +244,7 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@echo ---- Linking --------------------------------------------------------------------------------------
-	$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@
+	@$(if $(OBJECTS),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
 	@echo ---- Finished compiling $(BUILD_TYPE) build ---------------------------------------------------------------
 
 -include $(DEPENDS)
@@ -312,7 +321,7 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run
+FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs
 MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
@@ -354,7 +363,7 @@ info:
 	@echo ""
 
 clean:
-	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(DEPENDS) $(TARGET_BIN)))
+	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(PDFS) $(DEPENDS) $(TARGET_BIN)))
 
 .PHONY: $(FAKE_TARGETS)
 
