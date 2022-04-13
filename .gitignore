@@ -1,9 +1,14 @@
-# Output directory
+# Generated
 .build
+.modules
+bin
+docs
+
+# Asm
+*.S
 
 # tmp
 .tmp
-.modules
 
 # Prerequisites
 *.d
