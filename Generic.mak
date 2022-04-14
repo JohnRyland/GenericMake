@@ -71,15 +71,19 @@ LINK          = c++
 STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
-DOCGEN        = pandoc -f markdown_mmd
+DOCGEN        = pandoc
+DOCGEN_FLAGS  = -f markdown_mmd
 C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
-LINK_FLAGS    = $(LFLAGS) $(LIBRARIES:%=-l%)
+LINK_FLAGS    = $(LFLAGS)
+LINK_LIBS     = $(LIBRARIES:%=-l%)
 STRIP_FLAGS   = -S
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
-OBJECTS       = $(SOURCES:%=$(OUTPUT_DIR)/objs/%.o)
+CODE          = $(filter %.c %.cpp %.S,$(SOURCES))
+OBJECTS       = $(CODE:%=$(OUTPUT_DIR)/objs/%.o)
+SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(SOURCES))
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
-PDFS          = $(patsubst %.md,docs/%.pdf,$(DOCS))
+PDFS          = $(patsubst %.md,$(OUTPUT_DIR)/docs/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
 PLATFORM      = $(UNAME)
@@ -150,37 +154,43 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 
 
 ######################################################################
+##  Output/logging
+
+INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">>" ">>>>" ">>>>>>" ">>>>>>>>" ">>>>>>>>>>" ">>>>>>>>>>>>"),"")
+POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "----------" "--------" "------" "----" "--"),"------------")
+LOG = printf "$(call INDENT)$(subst ",,  --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0,$(MAKELEVEL)),\r,\n)"
+
+
+######################################################################
 ##  Build rules
 
 compiling:
-	@echo ---- Compiling $(BUILD_TYPE) build ----------------------------------------------------------------------
-
-strip: $(TARGET_BIN)
-	@echo ---- Stripping $(TARGET_BIN) ----------------------------------------------------------------------
-	@$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
+	@$(call LOG, Compiling $(BUILD_TYPE) build -----------)
 
 run: $(TARGET_BIN)
-	@echo ---- Running $(TARGET_BIN) ----------------------------------------------------------------------
-	@$(TARGET_BIN) --debug && echo PASSED
+	@$(call LOG, Running ---------------------------)
+	$(TARGET_BIN) --debug && echo PASSED
 
 todos:
-	@echo ---- Finding todos --------------------------------------------------------------------------------
+	@$(call LOG, Finding todos ---------------------)
 	@$(call grep,"todo" $(sources) $(wildcard *.h))
 
 done:
-	@echo ---- Done -----------------------------------------------------------------------------------------
+	@$(call LOG, Done ------------------------------)
 
 purge:
-	@echo ---- Purging --------------------------------------------------------------------------------------
+	@$(call LOG, Purging ---------------------------)
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR) $(MODULES_DIR)
 
 modules:
-	@echo ---- Modules --------------------------------------------------------------------------------------
+	@$(call LOG, Modules ---------------------------)
 
 docs: 
-	@echo ---- Documentation --------------------------------------------------------------------------------
+	@$(call LOG, Documentation ---------------------)
 
-build: $(PROJECT_FILE) $(TAGS) modules $(MODULE_DEPS) docs $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+
+strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 
 build_and_run: build run done
 
@@ -207,9 +217,9 @@ $(PROJECT_FILE):
 	@echo CXXFLAGS     = -std=c++11>> $@
 	@echo LFLAGS       = >> $@
 
-$(TAGS): $(patsubst %, ./%, $(SOURCES) $(wildcard *.h))
-	@echo ---- Updating tags --------------------------------------------------------------------------------
-	@$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),)
+$(TAGS): $(patsubst %, ./%, $(CODE) $(wildcard *.h) $(foreach incdir,$(INCLUDES),$(wildcard incidr/*.h)))
+	@$(call LOG, Updating tags ---------------------)
+	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
 
 
 ######################################################################
@@ -233,9 +243,13 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
-docs/%.pdf: %.md $(DOC_TEMPLATE)
+$(OUTPUT_DIR)/docs/%.pdf: %.md $(DOC_TEMPLATE)
 	@$(call MKDIR,$(dir $@))
-	$(DOCGEN) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@
+	$(if $(shell which $(DOCGEN)),$(DOCGEN) $(DOCGEN_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
+
+%/subdir_target:
+	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  --\n"
+	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
 
 
 ######################################################################
@@ -243,9 +257,16 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 
 $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
-	@echo ---- Linking --------------------------------------------------------------------------------------
-	@$(if $(OBJECTS),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
-	@echo ---- Finished compiling $(BUILD_TYPE) build ---------------------------------------------------------------
+	@$(call LOG, Linking ---------------------------)
+	$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) $(LINK_LIBS) -o $@,)
+	@$(call LOG, Finished compiling $(BUILD_TYPE) build --)
+
+$(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
+	@$(call MKDIR,$(dir $@))
+	@$(call LOG, Stripping -------------------------)
+	$(if $(wildcard $(TARGET_BIN)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
+	$(if $(wildcard $(TARGET_BIN)),cp $@ $<,)
+	@touch $@
 
 -include $(DEPENDS)
 
@@ -257,7 +278,7 @@ $(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
 	@mkdir -p $(dir $@)
 	@echo Running $(patsubst $(TEST_XML_DIR)/%.xml,%,$@) unit test
 	@$< --filter=$(patsubst $(TEST_XML_DIR)/%.xml,%,$@) --output=$@
-	@echo -------------------------------------------------
+	@$(call LOG,------------------------------------)
 
 $(TEST_REPORT): $(TARGET_BIN)
 	@make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@
