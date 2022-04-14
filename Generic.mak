@@ -167,11 +167,11 @@ compiling:
 
 strip: $(TARGET_BIN)
 	@$(call LOG, Stripping -------------------------)
-	@$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
+	$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
 
 run: $(TARGET_BIN)
 	@$(call LOG, Running ---------------------------)
-	@$(TARGET_BIN) --debug && echo PASSED
+	$(TARGET_BIN) --debug && echo PASSED
 
 todos:
 	@$(call LOG, Finding todos ---------------------)
@@ -179,7 +179,6 @@ todos:
 
 done:
 	@$(call LOG, Done ------------------------------)
-	@printf "\n"
 
 purge:
 	@$(call LOG, Purging ---------------------------)
@@ -259,7 +258,7 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Linking ---------------------------)
-	@$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
+	$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
 	@$(call LOG, Finished compiling $(BUILD_TYPE) build --)
 
 -include $(DEPENDS)
