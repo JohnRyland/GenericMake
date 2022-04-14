@@ -71,7 +71,8 @@ LINK          = c++
 STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
-DOCGEN        = pandoc -f markdown_mmd
+DOCGEN        = pandoc
+DOCGEN_FLAGS  = -f markdown_mmd
 C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(LIBRARIES:%=-l%)
@@ -217,7 +218,7 @@ $(PROJECT_FILE):
 
 $(TAGS): $(patsubst %, ./%, $(CODE) $(wildcard *.h) $(foreach incdir,$(INCLUDES),$(wildcard incidr/*.h)))
 	@$(call LOG, Updating tags ---------------------)
-	@$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),)
+	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
 
 
 ######################################################################
@@ -243,7 +244,7 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 
 docs/%.pdf: %.md $(DOC_TEMPLATE)
 	@$(call MKDIR,$(dir $@))
-	$(DOCGEN) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@
+	$(if $(shell which $(DOCGEN)),$(DOCGEN) $(DOCGEN_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
 
 %/subdir_target:
 	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  --\n"
