@@ -158,7 +158,7 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 
 INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">>" ">>>>" ">>>>>>" ">>>>>>>>" ">>>>>>>>>>" ">>>>>>>>>>>>"),"")
 POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "----------" "--------" "------" "----" "--"),"------------")
-LOG = printf "$(call INDENT)$(subst ",,  --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0,$(MAKELEVEL)),\r,\n)"
+LOG = printf '$(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0,$(MAKELEVEL)),\r,\n)'
 
 
 ######################################################################
