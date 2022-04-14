@@ -154,8 +154,8 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 ######################################################################
 ##  Output/logging
 
-INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">" ">>" ">>>" ">>>>" ">>>>>" ">>>>>>"),"")
-POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "-----" "----" "---" "--" "-"),"------")
+INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">>" ">>>>" ">>>>>>" ">>>>>>>>" ">>>>>>>>>>" ">>>>>>>>>>>>"),"")
+POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "----------" "--------" "------" "----" "--"),"------------")
 LOG = echo $(call INDENT)$(subst ",,----$(1)-------------------------------------------$(call POST_INDENT))
 
 
@@ -248,10 +248,10 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 	$(DOCGEN) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@
 
 %/subdir_target:
-	@$(call LOG, Start building sub-directory -----)
-	@echo $(call INDENT)---- $(patsubst %/subdir_target,%,$@):
+	@# $(call LOG, Start building sub-directory ------)
+	@echo $(call INDENT) --  $(patsubst %/subdir_target,%,$@)  --
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
-	@$(call LOG, End building sub-directory -------)
+	@# $(call LOG, End building sub-directory --------)
 
 
 ######################################################################
