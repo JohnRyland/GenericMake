@@ -179,6 +179,7 @@ todos:
 
 done:
 	@$(call LOG, Done ------------------------------)
+	@printf "\n"
 
 purge:
 	@$(call LOG, Purging ---------------------------)
@@ -252,6 +253,7 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 	@echo $(call INDENT) --  $(patsubst %/subdir_target,%,$@)  --
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
 	@# $(call LOG, End building sub-directory --------)
+	@printf "\n"
 
 
 ######################################################################
