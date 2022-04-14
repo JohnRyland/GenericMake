@@ -154,44 +154,41 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 ######################################################################
 ##  Output/logging
 
-INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), " " "  " "   " "    " "      " "      "),"")
+INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">" ">>" ">>>" ">>>>" ">>>>>" ">>>>>>"),"")
 POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "-----" "----" "---" "--" "-"),"------")
-
-LOG = echo "$(call INDENT)" "$(1)" ------------------------------------------- "$(call POST_INDENT)"
-
-# LOG = echo "$(subst ",,$(call INDENT)$(1)"-------------------------------------------"$(call POST_INDENT))""
+LOG = echo $(call INDENT)$(subst ",,----$(1)-------------------------------------------$(call POST_INDENT))
 
 
 ######################################################################
 ##  Build rules
 
 compiling:
-	@$(call LOG,---- Compiling $(BUILD_TYPE) build -----------)
+	@$(call LOG, Compiling $(BUILD_TYPE) build -----------)
 
 strip: $(TARGET_BIN)
-	@$(call LOG,---- Stripping -------------------------)
+	@$(call LOG, Stripping -------------------------)
 	@$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
 
 run: $(TARGET_BIN)
-	@$(call LOG,---- Running ---------------------------)
+	@$(call LOG, Running ---------------------------)
 	@$(TARGET_BIN) --debug && echo PASSED
 
 todos:
-	@$(call LOG,---- Finding todos ---------------------)
+	@$(call LOG, Finding todos ---------------------)
 	@$(call grep,"todo" $(sources) $(wildcard *.h))
 
 done:
-	@$(call LOG,---- Done ------------------------------)
+	@$(call LOG, Done ------------------------------)
 
 purge:
-	@$(call LOG,---- Purging ---------------------------)
+	@$(call LOG, Purging ---------------------------)
 	$(RMDIR) $(TEMP_DIR) $(TARGET_DIR) $(MODULES_DIR)
 
 modules:
-	@$(call LOG,---- Modules ---------------------------)
+	@$(call LOG, Modules ---------------------------)
 
 docs: 
-	@$(call LOG,---- Documentation ---------------------)
+	@$(call LOG, Documentation ---------------------)
 
 build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
@@ -221,7 +218,7 @@ $(PROJECT_FILE):
 	@echo LFLAGS       = >> $@
 
 $(TAGS): $(patsubst %, ./%, $(CODE) $(wildcard *.h) $(foreach incdir,$(INCLUDES),$(wildcard incidr/*.h)))
-	@$(call LOG,---- Updating tags ---------------------)
+	@$(call LOG, Updating tags ---------------------)
 	@$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),)
 
 
@@ -251,10 +248,10 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 	$(DOCGEN) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@
 
 %/subdir_target:
-	@$(call LOG,---- Start building sub-directory ------)
+	@$(call LOG,+ Start building sub-directory -----)
 	@echo Sub-directory: $(patsubst %/subdir_target,%,$@)
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
-	@$(call LOG,---- End building sub-directory --------)
+	@$(call LOG,- End building sub-directory -------)
 
 
 ######################################################################
@@ -262,9 +259,9 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 
 $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
-	@$(call LOG,---- Linking ---------------------------)
+	@$(call LOG, Linking ---------------------------)
 	@$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
-	@$(call LOG,---- Finished compiling $(BUILD_TYPE) build --)
+	@$(call LOG, Finished compiling $(BUILD_TYPE) build --)
 
 -include $(DEPENDS)
 
@@ -276,7 +273,7 @@ $(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
 	@mkdir -p $(dir $@)
 	@echo Running $(patsubst $(TEST_XML_DIR)/%.xml,%,$@) unit test
 	@$< --filter=$(patsubst $(TEST_XML_DIR)/%.xml,%,$@) --output=$@
-	@$(call LOG,----------------------------------------)
+	@$(call LOG,------------------------------------)
 
 $(TEST_REPORT): $(TARGET_BIN)
 	@make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@
