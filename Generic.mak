@@ -75,7 +75,8 @@ DOCGEN        = pandoc
 DOCGEN_FLAGS  = -f markdown_mmd
 C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
-LINK_FLAGS    = $(LFLAGS) $(LIBRARIES:%=-l%)
+LINK_FLAGS    = $(LFLAGS)
+LINK_LIBS     = $(LIBRARIES:%=-l%)
 STRIP_FLAGS   = -S
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
 CODE          = $(filter %.c %.cpp %.S,$(SOURCES))
@@ -257,7 +258,7 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Linking ---------------------------)
-	$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
+	$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) $(LINK_LIBS) -o $@,)
 	@$(call LOG, Finished compiling $(BUILD_TYPE) build --)
 
 $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
