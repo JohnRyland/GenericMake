@@ -83,7 +83,7 @@ CODE          = $(filter %.c %.cpp %.S,$(SOURCES))
 OBJECTS       = $(CODE:%=$(OUTPUT_DIR)/objs/%.o)
 SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(SOURCES))
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
-PDFS          = $(patsubst %.md,docs/%.pdf,$(DOCS))
+PDFS          = $(patsubst %.md,$(OUTPUT_DIR)/docs/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
 PLATFORM      = $(UNAME)
@@ -243,7 +243,7 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
-docs/%.pdf: %.md $(DOC_TEMPLATE)
+$(OUTPUT_DIR)/docs/%.pdf: %.md $(DOC_TEMPLATE)
 	@$(call MKDIR,$(dir $@))
 	$(if $(shell which $(DOCGEN)),$(DOCGEN) $(DOCGEN_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
 
