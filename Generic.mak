@@ -249,10 +249,9 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 
 %/subdir_target:
 	@$(call LOG, Start building sub-directory -----)
-	@echo $(call INDENT)---- Sub-directory: $(patsubst %/subdir_target,%,$@)
-	# @echo Sub-directory: $(patsubst %/subdir_target,%,$@)
+	@echo $(call INDENT)---- $(patsubst %/subdir_target,%,$@):
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
-	@$(call LOG,- End building sub-directory -------)
+	@$(call LOG, End building sub-directory -------)
 
 
 ######################################################################
