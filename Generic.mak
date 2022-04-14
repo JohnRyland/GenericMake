@@ -251,7 +251,7 @@ docs/%.pdf: %.md $(DOC_TEMPLATE)
 %/subdir_target:
 	@printf "\n"
 	@# $(call LOG, Start building sub-directory ------)
-	@echo $(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  --
+	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  --\r"
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
 	@# $(call LOG, End building sub-directory --------)
 
