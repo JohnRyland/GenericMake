@@ -165,10 +165,6 @@ LOG = printf "$(call INDENT)$(subst ",,  --$(1)---------------------------------
 compiling:
 	@$(call LOG, Compiling $(BUILD_TYPE) build -----------)
 
-strip: $(TARGET_BIN)
-	@$(call LOG, Stripping -------------------------)
-	$(if $(wildcard $(TARGET_BIN)),$(STRIP) -S $(TARGET_BIN),)
-
 run: $(TARGET_BIN)
 	@$(call LOG, Running ---------------------------)
 	$(TARGET_BIN) --debug && echo PASSED
@@ -191,6 +187,8 @@ docs:
 	@$(call LOG, Documentation ---------------------)
 
 build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+
+strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 
 build_and_run: build run done
 
@@ -260,6 +258,13 @@ $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call LOG, Linking ---------------------------)
 	$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) -o $@,)
 	@$(call LOG, Finished compiling $(BUILD_TYPE) build --)
+
+$(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
+	@$(call MKDIR,$(dir $@))
+	@$(call LOG, Stripping -------------------------)
+	$(if $(wildcard $(TARGET_BIN)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
+	$(if $(wildcard $(TARGET_BIN)),cp $@ $<,)
+	@touch $@
 
 -include $(DEPENDS)
 
