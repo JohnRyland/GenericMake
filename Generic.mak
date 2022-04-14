@@ -248,7 +248,7 @@ $(OUTPUT_DIR)/docs/%.pdf: %.md $(DOC_TEMPLATE)
 	$(if $(shell which $(DOCGEN)),$(DOCGEN) $(DOCGEN_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
 
 %/subdir_target:
-	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  --\n"
+	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
 
 
