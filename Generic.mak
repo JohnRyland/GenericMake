@@ -91,7 +91,7 @@ COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|G
 COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
-PROJECT_FILE  = $(BASENAME).pro
+PROJECT_FILE  = $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
 
 
 ######################################################################
