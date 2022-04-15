@@ -73,6 +73,7 @@ LINKER        = c++
 CTAGS         = ctags
 DOCGEN        = pandoc
 DOCGEN_FLAGS  = -f markdown_mmd
+GCOVR         = gcovr
 C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(BUILD_TYPE_FLAGS)
@@ -276,7 +277,7 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Generating coverage report --------)
-	gcovr --html-details --object-directory $(OUTPUT_DIR)/objs -o $@
+	$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@)
 
 -include $(DEPENDS)
 
