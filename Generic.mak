@@ -74,9 +74,10 @@ CTAGS         = ctags
 PANDOC        = pandoc
 PANDOC_FLAGS  = -f markdown_mmd
 DOXYGEN       = doxygen
-C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
+GCOVR         = gcovr
+C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
-LINK_FLAGS    = $(LFLAGS)
+LINK_FLAGS    = $(LFLAGS) $(BUILD_TYPE_FLAGS)
 LINK_LIBS     = $(LIBRARIES:%=-l%)
 STRIP_FLAGS   = -S
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
@@ -162,7 +163,7 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 
 INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">>" ">>>>" ">>>>>>" ">>>>>>>>" ">>>>>>>>>>" ">>>>>>>>>>>>"),"")
 POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "----------" "--------" "------" "----" "--"),"------------")
-LOG = printf '$(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0,$(MAKELEVEL)),\r,\n)'
+LOG = printf '$(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0 1,$(MAKELEVEL)),\r,\n)'
 
 
 ######################################################################
@@ -189,7 +190,7 @@ purge:
 modules:
 	@$(call LOG, Modules ---------------------------)
 
-docs: 
+docs:
 	@$(call LOG, Documentation ---------------------)
 
 build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs doxygen $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
@@ -197,19 +198,24 @@ build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs doxygen $(
 doxygen: $(DOCS_DIR)/html/index.html
 
 strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
+	@$(call LOG, Stripped --------------------------)
+
+coverage: $(OUTPUT_DIR)/coverage/index.html
+	@$(call LOG, Finished creating coverage report -)
 
 build_and_run: build run done
 
-release: build strip done
+release:
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
 
 debug:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS=-g BUILD_TYPE_SUFFIX=_d build_and_run
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
 
 profile:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-g -DNDEBUG" BUILD_TYPE_SUFFIX=_p build_and_run
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
 
 test:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-g -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify done
+	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
 
 $(PROJECT_FILE):
 	@echo Generating project file as $@
@@ -274,6 +280,11 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	$(if $(wildcard $(TARGET_BIN)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
 	$(if $(wildcard $(TARGET_BIN)),cp $@ $<,)
 	@touch $@
+
+$(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
+	@$(call MKDIR,$(dir $@))
+	@$(call LOG, Generating coverage report --------)
+	$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@)
 
 -include $(DEPENDS)
 
