@@ -71,19 +71,21 @@ LINK          = c++
 STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
-DOCGEN        = pandoc
-DOCGEN_FLAGS  = -f markdown_mmd
+PANDOC        = pandoc
+PANDOC_FLAGS  = -f markdown_mmd
+DOXYGEN       = doxygen
 C_FLAGS       = $(BUILD_TYPE_FLAGS) $(CFLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS)
 LINK_LIBS     = $(LIBRARIES:%=-l%)
 STRIP_FLAGS   = -S
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
+DOCS_DIR      = $(TEMP_DIR)/docs
 CODE          = $(filter %.c %.cpp %.S,$(SOURCES))
 OBJECTS       = $(CODE:%=$(OUTPUT_DIR)/objs/%.o)
 SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(SOURCES))
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
-PDFS          = $(patsubst %.md,$(OUTPUT_DIR)/docs/%.pdf,$(DOCS))
+PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
 PLATFORM      = $(UNAME)
@@ -91,7 +93,9 @@ COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|G
 COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
+GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_FILE  = $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
+CODE_FILES    = $(patsubst %, ./%, $(CODE) $(wildcard *.h *.hpp) $(foreach incdir,$(INCLUDES),$(wildcard incdir/*.h incdir/*.hpp)))
 
 
 ######################################################################
@@ -188,7 +192,9 @@ modules:
 docs: 
 	@$(call LOG, Documentation ---------------------)
 
-build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs doxygen $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+
+doxygen: $(DOCS_DIR)/html/index.html
 
 strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 
@@ -206,6 +212,7 @@ test:
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-g -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify done
 
 $(PROJECT_FILE):
+	@echo Generating project file as $@
 	@echo PROJECT      = $(BASENAME)> $@
 	@echo TARGET       = $(BASENAME)>> $@
 	@echo SOURCES      = $(wildcard *.c *.cpp)>> $@
@@ -217,7 +224,7 @@ $(PROJECT_FILE):
 	@echo CXXFLAGS     = -std=c++11>> $@
 	@echo LFLAGS       = >> $@
 
-$(TAGS): $(patsubst %, ./%, $(CODE) $(wildcard *.h) $(foreach incdir,$(INCLUDES),$(wildcard incidr/*.h)))
+$(TAGS): $(CODE_FILES)
 	@$(call LOG, Updating tags ---------------------)
 	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
 
@@ -243,9 +250,9 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
-$(OUTPUT_DIR)/docs/%.pdf: %.md $(DOC_TEMPLATE)
+$(DOCS_DIR)/%.pdf: %.md $(DOC_TEMPLATE)
 	@$(call MKDIR,$(dir $@))
-	$(if $(shell which $(DOCGEN)),$(DOCGEN) $(DOCGEN_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
+	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
 
 %/subdir_target:
 	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
@@ -269,6 +276,28 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	@touch $@
 
 -include $(DEPENDS)
+
+
+######################################################################
+##  Doxygen
+
+$(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(CODE_FILES) $(DOCS)
+	@$(call MKDIR,$(dir $@))
+	@echo PROJECT_NAME           = $(PROJECT) > $@
+	@echo PROJECT_BRIEF          = $(BRIEF) >> $@
+	@echo PROJECT_LOGO           = $(LOGO) >> $@
+	@echo OUTPUT_DIRECTORY       = $(DOCS_DIR) >> $@
+	@echo INPUT                  = $(CODE_FILES) $(DOCS) >> $@
+	@echo USE_MDFILE_AS_MAINPAGE = $(firstword $(DOCS)) >> $@
+	@echo LAYOUT_FILE            = $(GENMAKE_DIR)doxygen/layout.xml >> $@
+	@echo HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html >> $@
+	@echo HTML_FOOTER            = $(GENMAKE_DIR)doxygen/footer.html >> $@
+	@echo HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css >> $@
+	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
+
+$(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(CODE_FILES) $(DOCS)
+	@$(call LOG, Doxygen ---------------------------)
+	@$(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
 
 
 ######################################################################
@@ -304,7 +333,7 @@ define generate_tree_items
 	@printf '$(2)'
 	$(eval ITEMS := $(3))
 	$(eval LAST := $(if $(ITEMS),$(word $(words $(ITEMS)), $(ITEMS)),))
-  @printf '$(foreach F, $(ITEMS),\n$(1) $(if $(filter $F,$(LAST)),┗━,┣━) $(notdir $F) \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t $(abspath $F))\n'
+	@printf '$(foreach F, $(ITEMS),\n$(1) $(if $(filter $F,$(LAST)),┗━,┣━) $(notdir $F) \t $(abspath $F))\n' | expand -t 50
 endef
 
 project:
@@ -342,7 +371,7 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs
+FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs doxygen
 MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
