@@ -97,6 +97,7 @@ MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_FILE  = $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
 CODE_FILES    = $(patsubst %, ./%, $(CODE) $(wildcard *.h *.hpp) $(foreach incdir,$(INCLUDES),$(wildcard incdir/*.h incdir/*.hpp)))
+PACKAGE_NAME  = $(PROJECT).zip
 
 
 ######################################################################
@@ -203,7 +204,7 @@ strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 coverage: $(OUTPUT_DIR)/coverage/index.html
 	@$(call LOG, Finished creating coverage report -)
 
-package: $(PROJECT).zip
+package: $(PACKAGE_NAME)
 	@$(call LOG, Finished creating package ---------)
 
 build_and_run: build run done
@@ -299,9 +300,9 @@ $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 ######################################################################
 ##  Package
 
-$(PROJECT).zip: $(PDFS) $(TARGET_BIN)
+$(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 	@$(call LOG, Creating package ------------------)
-	$(if $(shell which zip),zip -j $(PROJECT).zip $^)
+	$(if $(shell which zip),zip -j $(PACKAGE_NAME) $^)
 
 
 ######################################################################
