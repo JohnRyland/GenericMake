@@ -7,36 +7,36 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   sodipodi:docname="background.svg"
-   inkscape:version="1.0beta2 (2b71d25, 2019-12-03)"
-   id="svg8"
-   version="1.1"
-   viewBox="0 0 210 297"
+   width="210mm"
    height="297mm"
-   width="210mm">
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg8"
+   inkscape:version="1.0beta2 (2b71d25, 2019-12-03)"
+   sodipodi:docname="background.svg">
   <style
      id="style833"></style>
   <defs
      id="defs2" />
   <sodipodi:namedview
-     inkscape:window-maximized="0"
-     inkscape:window-y="296"
-     inkscape:window-x="811"
-     inkscape:window-height="880"
-     inkscape:window-width="1600"
-     showgrid="false"
-     inkscape:document-rotation="0"
-     inkscape:current-layer="layer1"
-     inkscape:document-units="mm"
-     inkscape:cy="383.27785"
-     inkscape:cx="192.28515"
-     inkscape:zoom="0.35"
-     inkscape:pageshadow="2"
-     inkscape:pageopacity="0.0"
-     borderopacity="1.0"
-     bordercolor="#666666"
+     id="base"
      pagecolor="#ffffff"
-     id="base" />
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.35"
+     inkscape:cx="192.28515"
+     inkscape:cy="383.27785"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer1"
+     inkscape:document-rotation="0"
+     showgrid="false"
+     inkscape:window-width="1600"
+     inkscape:window-height="880"
+     inkscape:window-x="719"
+     inkscape:window-y="332"
+     inkscape:window-maximized="0" />
   <metadata
      id="metadata5">
     <rdf:RDF>
@@ -45,25 +45,25 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
   <g
-     id="layer1"
+     inkscape:label="Layer 1"
      inkscape:groupmode="layer"
-     inkscape:label="Layer 1">
+     id="layer1">
     <path
-       style="fill:#1886bd;fill-opacity:0.994152;stroke:none;stroke-width:0.5055px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 209.96849,125.85711 35.456814,296.99802 210.02513,296.92632 Z"
-       id="path835-4"
+       style="fill:#56e304;fill-opacity:0.654971;stroke:none;stroke-width:0.289508px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 0.04457632,211.58297 114.69942,297.02352 0.00736872,296.9877 Z"
+       id="path835"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cccc" />
     <path
        sodipodi:nodetypes="cccc"
        inkscape:connector-curvature="0"
-       id="path835"
-       d="M 0.04457632,211.58297 114.69942,297.02352 0.00736872,296.9877 Z"
-       style="fill:#7aacdd;fill-opacity:0.46783626;stroke:none;stroke-width:0.28950799999999999px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+       id="path835-4"
+       d="M 209.96849,125.85711 35.456814,296.99802 210.02513,296.92632 Z"
+       style="fill:#18a3bd;fill-opacity:0.6608187;stroke:none;stroke-width:0.50549999999999995px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
   </g>
 </svg>
