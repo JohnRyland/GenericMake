@@ -72,7 +72,8 @@ STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
 PANDOC        = pandoc
-PANDOC_FLAGS  = -f markdown_mmd
+PANDOC_FLAGS  = -f markdown_mmd --template $(PANDOC_TEMPLATE) --resource-path=./$(GENMAKE_DIR)pandoc
+PANDOC_TEMPLATE = $(GENMAKE_DIR)pandoc/template.tex
 DOXYGEN       = doxygen
 GCOVR         = gcovr
 C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
@@ -260,14 +261,6 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
-$(DOCS_DIR)/%.pdf: %.md $(DOC_TEMPLATE)
-	@$(call MKDIR,$(dir $@))
-	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
-
-%/subdir_target:
-	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
-	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
-
 
 ######################################################################
 ##  Compile target
@@ -289,6 +282,14 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 
 
 ######################################################################
+##  Sub-directories (recursive make)
+
+%/subdir_target:
+	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
+	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
+
+
+######################################################################
 ##  Coverage
 
 $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
@@ -303,6 +304,24 @@ $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 $(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 	@$(call LOG, Creating package ------------------)
 	$(if $(shell which zip),zip -j $(PACKAGE_NAME) $^)
+
+
+######################################################################
+##  PDFs
+
+$(DOCS_DIR)/logo.pdf: $(LOGO)
+	rsvg-convert -f pdf $< -o $@
+
+$(DOCS_DIR)/%.meta:
+	@echo title:        $(PROJECT) > $@
+	@echo subtitle:     $(BRIEF) >> $@
+	@echo background:   $(GENMAKE_DIR)pandoc/background.pdf >> $@
+	@echo logo:         $(if $(LOGO),$(DOCS_DIR)/logo.pdf) >> $@
+	@echo author:       $(shell git config user.name) >> $@
+
+$(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.meta
+	@$(call MKDIR,$(dir $@))
+	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $@ --metadata-file=$(@:%.pdf=%.meta))
 
 
 ######################################################################
