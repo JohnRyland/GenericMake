@@ -341,6 +341,9 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(CODE_FILES) $(DOCS)
 	@echo HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html >> $@
 	@echo HTML_FOOTER            = $(GENMAKE_DIR)doxygen/footer.html >> $@
 	@echo HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css >> $@
+	@echo PLANTUML_JAR_PATH      = $(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g') >> $@
+	@echo HAVE_DOT               = $(if $(shell which dot),YES,NO) >> $@
+	@echo DOT_PATH               = $(dir $(shell which dot)) >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
 $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(CODE_FILES) $(DOCS)
