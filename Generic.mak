@@ -311,7 +311,7 @@ $(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 
 $(DOCS_DIR)/logo.pdf: $(LOGO)
 	@$(call MKDIR,$(dir $@))
-	rsvg-convert -f pdf $< -o $@
+	$(if $(shell which rsvg-convert),rsvg-convert -f pdf $< -o $@)
 
 $(DOCS_DIR)/%.meta:
 	@$(call MKDIR,$(dir $@))
