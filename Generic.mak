@@ -310,9 +310,11 @@ $(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 ##  PDFs
 
 $(DOCS_DIR)/logo.pdf: $(LOGO)
+	@$(call MKDIR,$(dir $@))
 	rsvg-convert -f pdf $< -o $@
 
 $(DOCS_DIR)/%.meta:
+	@$(call MKDIR,$(dir $@))
 	@echo title:        $(PROJECT) > $@
 	@echo subtitle:     $(BRIEF) >> $@
 	@echo background:   $(GENMAKE_DIR)pandoc/background.pdf >> $@
