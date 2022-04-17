@@ -203,6 +203,9 @@ strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 coverage: $(OUTPUT_DIR)/coverage/index.html
 	@$(call LOG, Finished creating coverage report -)
 
+package: $(PROJECT).zip
+	@$(call LOG, Finished creating package ---------)
+
 build_and_run: build run done
 
 release:
@@ -281,12 +284,24 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	$(if $(wildcard $(TARGET_BIN)),cp $@ $<,)
 	@touch $@
 
+-include $(DEPENDS)
+
+
+######################################################################
+##  Coverage
+
 $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Generating coverage report --------)
 	$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@)
 
--include $(DEPENDS)
+
+######################################################################
+##  Package
+
+$(PROJECT).zip: $(PDFS) $(TARGET_BIN)
+	@$(call LOG, Creating package ------------------)
+	$(if $(shell which zip),zip -j $(PROJECT).zip $^)
 
 
 ######################################################################
@@ -382,7 +397,7 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs doxygen
+FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs doxygen package
 MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
