@@ -72,7 +72,8 @@ STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
 PANDOC        = pandoc
-PANDOC_FLAGS  = -f markdown_mmd
+PANDOC_FLAGS  = -f markdown --template $(PANDOC_TEMPLATE) --resource-path=$(GENMAKE_DIR)pandoc
+PANDOC_TEMPLATE = $(GENMAKE_DIR)pandoc/template.tex
 DOXYGEN       = doxygen
 GCOVR         = gcovr
 C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(INCLUDES:%=-I%)
@@ -96,7 +97,8 @@ MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_FILE  = $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
-CODE_FILES    = $(patsubst %, ./%, $(CODE) $(wildcard *.h *.hpp) $(foreach incdir,$(INCLUDES),$(wildcard incdir/*.h incdir/*.hpp)))
+CODE_FILES    = $(patsubst %, ./%, $(CODE) $(wildcard *.h *.hpp) $(foreach incdir,$(INCLUDES),$(wildcard ${incdir}/*.h ${incdir}/*.hpp)))
+PACKAGE_NAME  = $(PROJECT).zip
 
 
 ######################################################################
@@ -193,7 +195,9 @@ modules:
 docs:
 	@$(call LOG, Documentation ---------------------)
 
-build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs doxygen $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+pdfs: $(PDFS)
+
+build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs pdfs doxygen compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
 doxygen: $(DOCS_DIR)/html/index.html
 
@@ -202,6 +206,9 @@ strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 
 coverage: $(OUTPUT_DIR)/coverage/index.html
 	@$(call LOG, Finished creating coverage report -)
+
+package: $(PACKAGE_NAME)
+	@$(call LOG, Finished creating package ---------)
 
 build_and_run: build run done
 
@@ -256,14 +263,6 @@ $(OUTPUT_DIR)/objs/%.c.o: %.c $(OUTPUT_DIR)/deps/%.c.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
-$(DOCS_DIR)/%.pdf: %.md $(DOC_TEMPLATE)
-	@$(call MKDIR,$(dir $@))
-	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $(if $(DOC_TEMPLATE),--template $(DOC_TEMPLATE),) $< -o $@,)
-
-%/subdir_target:
-	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
-	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
-
 
 ######################################################################
 ##  Compile target
@@ -277,16 +276,56 @@ $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Stripping -------------------------)
-	$(if $(wildcard $(TARGET_BIN)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
-	$(if $(wildcard $(TARGET_BIN)),cp $@ $<,)
-	@touch $@
+	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,touch $@)
+	$(if $(strip $(OBJECTS)),cp $@ $<,)
+
+-include $(DEPENDS)
+
+
+######################################################################
+##  Sub-directories (recursive make)
+
+%/subdir_target:
+	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
+	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
+
+
+######################################################################
+##  Coverage
 
 $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Generating coverage report --------)
-	$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@)
+	$(if $(strip $(OBJECTS)),$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@),touch $@)
 
--include $(DEPENDS)
+
+######################################################################
+##  Package
+
+$(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
+	@$(call LOG, Creating package ------------------)
+	$(if $(shell which zip),zip -j $(PACKAGE_NAME) $^)
+
+
+######################################################################
+##  PDFs
+
+$(DOCS_DIR)/logo.pdf: $(LOGO)
+	@$(call MKDIR,$(dir $@))
+	$(if $(LOGO),$(if $(shell which rsvg-convert),rsvg-convert -f pdf $< -o $@))
+	@touch $@
+
+$(DOCS_DIR)/%.meta:
+	@$(call MKDIR,$(dir $@))
+	@echo title:        $(PROJECT) > $@
+	@echo subtitle:     $(BRIEF) >> $@
+	@echo background:   $(GENMAKE_DIR)pandoc/background.pdf >> $@
+	@echo logo:         $(if $(LOGO),$(DOCS_DIR)/logo.pdf) >> $@
+	@echo author:       $(shell git config user.name) >> $@
+
+$(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.meta
+	@$(call MKDIR,$(dir $@))
+	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $@ --metadata-file=$(@:%.pdf=%.meta))
 
 
 ######################################################################
@@ -304,6 +343,9 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(CODE_FILES) $(DOCS)
 	@echo HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html >> $@
 	@echo HTML_FOOTER            = $(GENMAKE_DIR)doxygen/footer.html >> $@
 	@echo HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css >> $@
+	@echo PLANTUML_JAR_PATH      = $(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g') >> $@
+	@echo HAVE_DOT               = $(if $(shell which dot),YES,NO) >> $@
+	@echo DOT_PATH               = $(dir $(shell which dot)) >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
 $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(CODE_FILES) $(DOCS)
@@ -382,7 +424,7 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs doxygen
+FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs pdfs doxygen package
 MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
