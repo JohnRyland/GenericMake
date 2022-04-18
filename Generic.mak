@@ -274,8 +274,8 @@ $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Stripping -------------------------)
-	$(if $(wildcard $(TARGET_BIN)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
-	$(if $(wildcard $(TARGET_BIN)),cp $@ $<,)
+	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
+	$(if $(strip $(OBJECTS)),cp $@ $<,)
 	@touch $@
 
 -include $(DEPENDS)
