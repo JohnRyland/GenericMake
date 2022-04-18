@@ -195,7 +195,9 @@ modules:
 docs:
 	@$(call LOG, Documentation ---------------------)
 
-build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs doxygen $(PDFS) compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+pdfs: $(PDFS)
+
+build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs pdfs doxygen compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
 
 doxygen: $(DOCS_DIR)/html/index.html
 
@@ -422,7 +424,7 @@ lldb-nvim.json: $(PROJECT_FILE)
 ######################################################################
 ##  Target management
 
-FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs doxygen package
+FAKE_TARGETS = debug release profile test clean purge verify help all info project paths system_paths dependancies null compiling todos build strip run done build_and_run modules docs pdfs doxygen package
 MAKE_TARGETS = $(MAKE) -f $(MAKEFILE) -rpn null | sed -n -e '/^$$/ { n ; /^[^ .\#][^ ]*:/ { s/:.*$$// ; p ; } ; }' | grep -v "$(TEMP_DIR)/"
 REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TARGETS) | sed 's/ /\\|/g')
 
