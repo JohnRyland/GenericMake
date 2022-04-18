@@ -205,16 +205,16 @@ coverage: $(OUTPUT_DIR)/coverage/index.html
 
 build_and_run: build run done
 
-release:
+release: $(MODULE_DEPS)
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
 
-debug:
+debug: $(MODULE_DEPS)
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
 
-profile:
+profile: $(MODULE_DEPS)
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
 
-test:
+test: $(MODULE_DEPS)
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
 
 $(PROJECT_FILE):
