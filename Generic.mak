@@ -212,16 +212,16 @@ package: $(PACKAGE_NAME)
 
 build_and_run: build run done
 
-release: $(MODULE_DEPS)
+release:
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
 
-debug: $(MODULE_DEPS)
+debug:
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
 
-profile: $(MODULE_DEPS)
+profile:
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
 
-test: $(MODULE_DEPS)
+test:
 	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
 
 $(PROJECT_FILE):
@@ -247,11 +247,11 @@ $(TAGS): $(CODE_FILES)
 
 .SUFFIXES: .cpp .c
 
-$(OUTPUT_DIR)/deps/%.cpp.d: %.cpp
+$(OUTPUT_DIR)/deps/%.cpp.d: %.cpp $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
 	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(OUTPUT_DIR)/objs/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
 
-$(OUTPUT_DIR)/deps/%.c.d: %.c
+$(OUTPUT_DIR)/deps/%.c.d: %.c $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
 	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OUTPUT_DIR)/objs/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
 
