@@ -271,6 +271,7 @@ $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Linking ---------------------------)
 	$(if $(strip $(OBJECTS)),$(LINKER) $(LINK_FLAGS) $(OBJECTS) $(LINK_LIBS) -o $@,)
+	$(if $(strip $(OBJECTS)),rm -f $(OBJECTS:%.o=%.gcda),)
 	@$(call LOG, Finished compiling $(BUILD_TYPE) build --)
 
 $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
@@ -363,6 +364,7 @@ $(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
 	@$(call LOG,------------------------------------)
 
 $(TEST_REPORT): $(TARGET_BIN)
+	@$< --help > /dev/null  # For code coverage reasons we invoke the help
 	@make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@
 
 
