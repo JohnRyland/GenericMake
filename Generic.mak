@@ -72,7 +72,7 @@ STRIP         = strip
 LINKER        = c++
 CTAGS         = ctags
 PANDOC        = pandoc
-PANDOC_FLAGS  = -f markdown_mmd --template $(PANDOC_TEMPLATE) --resource-path=./$(GENMAKE_DIR)pandoc
+PANDOC_FLAGS  = -f markdown --template $(PANDOC_TEMPLATE) --resource-path=$(GENMAKE_DIR)pandoc
 PANDOC_TEMPLATE = $(GENMAKE_DIR)pandoc/template.tex
 DOXYGEN       = doxygen
 GCOVR         = gcovr
@@ -311,7 +311,8 @@ $(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 
 $(DOCS_DIR)/logo.pdf: $(LOGO)
 	@$(call MKDIR,$(dir $@))
-	$(if $(shell which rsvg-convert),rsvg-convert -f pdf $< -o $@)
+	$(if $(LOGO),$(if $(shell which rsvg-convert),rsvg-convert -f pdf $< -o $@))
+	@touch $@
 
 $(DOCS_DIR)/%.meta:
 	@$(call MKDIR,$(dir $@))

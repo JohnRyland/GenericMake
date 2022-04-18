@@ -6,12 +6,17 @@
 \usepackage{graphicx, amsmath,amssymb}
 \usepackage[utf8]{inputenc}
 \usepackage{textcomp,flafter,natbib,bm}
-\usepackage[pdftex,bookmarks,colorlinks,breaklinks]{hyperref}
+\usepackage[pdftex,bookmarks,colorlinks,breaklinks,citecolor=blue,linkcolor=blue]{hyperref}
 \usepackage{memhfixc,booktabs,array}
 \usepackage{verbatim}
 \usepackage{fancyhdr}
 \usepackage{tikz}
 \usepackage{datetime}
+\usepackage{amsmath}
+\usepackage{longtable}
+\def\tightlist{}
+\setlength{\parindent}{0em}
+\setlength{\parskip}{0.5em}
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[LE,RO]{\color[HTML]{4F4F4F} \small \textsf{ \leftmark }}
@@ -20,6 +25,14 @@
 \fancyfoot[LE,RO]{\color[HTML]{4F4F4F} \small \textsf{ Page \thepage }}
 \renewcommand{\headrulewidth}{1pt}
 \renewcommand{\footrulewidth}{1pt}
+\usepackage{float}
+\let\origfigure\figure
+\let\endorigfigure\endfigure
+\renewenvironment{figure}[1][2] {
+    \expandafter\origfigure\expandafter[H]
+} {
+    \endorigfigure
+}
 %-----------------------------  METADATA --------------------------
 \title{$title$}
 \author{$author$}
@@ -57,7 +70,6 @@ $endif$
 \color[HTML]{1F1F1F}
 \tableofcontents
 \listoffigures
-\listoftables
 \newpage
 %------------------------------ SECTIONS -----------------------------
 $body$
