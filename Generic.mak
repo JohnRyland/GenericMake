@@ -274,9 +274,8 @@ $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS)
 $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Stripping -------------------------)
-	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,)
+	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,touch $@)
 	$(if $(strip $(OBJECTS)),cp $@ $<,)
-	@touch $@
 
 -include $(DEPENDS)
 
@@ -295,7 +294,7 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Generating coverage report --------)
-	$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@)
+	$(if $(strip $(OBJECTS)),$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@),touch $@)
 
 
 ######################################################################
