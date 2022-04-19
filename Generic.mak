@@ -81,12 +81,17 @@ CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(BUILD_TYPE_FLAGS)
 LINK_LIBS     = $(LIBRARIES:%=-l%)
 STRIP_FLAGS   = -S
-OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
-DOCS_DIR      = $(TEMP_DIR)/docs
-CODE          = $(filter %.c %.cpp %.S,$(SOURCES))
+# BASE_DIR is set for sub-project builds and is the relative path to the sub-project
+BASE_DIR      =
+# output directories are prefixed with the sub-project paths to avoid collisions and for distinct intermediate targets
+OUTPUT_DIR    = $(TEMP_DIR)/$(BASE_DIR)$(BUILD_TYPE)
+DOCS_DIR      = $(TEMP_DIR)/$(BASE_DIR)docs
+# REL_SOURCES is the expanded paths to sources (no longer relative to the sub-project, but relative to the parent) 
+REL_SOURCES   = $(patsubst %,$(BASE_DIR)%,$(SOURCES))
+CODE          = $(filter %.c %.cpp %.S,$(REL_SOURCES))
 OBJECTS       = $(CODE:%=$(OUTPUT_DIR)/objs/%.o)
-SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(SOURCES))
-SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(SOURCES))
+SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(REL_SOURCES))
+SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(REL_SOURCES))
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
@@ -128,9 +133,9 @@ TARGET_DIR   = bin
 TEMP_DIR     = .build
 MODULES_DIR  = .modules
 TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(BUILD_TYPE_SUFFIX)$(TARGET_EXT)
-TAGS         = $(TEMP_DIR)/tags
-TEST_REPORT  = $(TEMP_DIR)/test-report.txt
-TEST_XML_DIR = $(TEMP_DIR)/Testing
+TAGS         = $(TEMP_DIR)/$(BASE_DIR)tags
+TEST_REPORT  = $(TEMP_DIR)/$(BASE_DIR)test-report.txt
+TEST_XML_DIR = $(TEMP_DIR)/$(BASE_DIR)Testing
 
 
 ######################################################################
@@ -240,6 +245,7 @@ $(PROJECT_FILE):
 
 $(TAGS): $(CODE_FILES)
 	@$(call LOG, Updating tags ---------------------)
+	@$(call MKDIR,$(dir $@))
 	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
 
 
@@ -293,7 +299,7 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 
 %.subproject_target: %.pro
 	@$(call LOG, $< ---------------)
-	@$(MAKE) PROJECT_FILE=$< BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) $(BUILD_TYPE)
+	@$(MAKE) PROJECT_FILE=$< BASE_DIR="$(dir $<)" BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) $(BUILD_TYPE)
 
 
 ######################################################################
