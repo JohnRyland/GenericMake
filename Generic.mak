@@ -289,11 +289,11 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 
 %/subdir_target:
 	@$(call LOG, $< $(patsubst %/subdir_target,%,$@) -----------)
-	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
+	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) $(BUILD_TYPE)
 
 %.subproject_target: %.pro
 	@$(call LOG, $< ---------------)
-	@$(MAKE) PROJECT_FILE=$< BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX)
+	@$(MAKE) PROJECT_FILE=$< BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) $(BUILD_TYPE)
 
 
 ######################################################################
