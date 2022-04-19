@@ -86,6 +86,7 @@ DOCS_DIR      = $(TEMP_DIR)/docs
 CODE          = $(filter %.c %.cpp %.S,$(SOURCES))
 OBJECTS       = $(CODE:%=$(OUTPUT_DIR)/objs/%.o)
 SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(SOURCES))
+SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(SOURCES))
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
@@ -165,7 +166,7 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 
 INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">>" ">>>>" ">>>>>>" ">>>>>>>>" ">>>>>>>>>>" ">>>>>>>>>>>>"),"")
 POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "----------" "--------" "------" "----" "--"),"------------")
-LOG = printf '$(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0 1,$(MAKELEVEL)),\r,\n)'
+LOG = printf '$(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0 1,$(MAKELEVEL)),\n,\n)'
 
 
 ######################################################################
@@ -197,7 +198,7 @@ docs:
 
 pdfs: $(PDFS)
 
-build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs pdfs doxygen compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) todos
+build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs pdfs doxygen compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) $(SUBPROJECTS) todos
 
 doxygen: $(DOCS_DIR)/html/index.html
 
@@ -287,8 +288,12 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 ##  Sub-directories (recursive make)
 
 %/subdir_target:
-	@printf "$(call INDENT)   --  $(patsubst %/subdir_target,%,$@)  -----------------\n"
+	@$(call LOG, $< $(patsubst %/subdir_target,%,$@) -----------)
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) build
+
+%.subproject_target: %.pro
+	@$(call LOG, $< ---------------)
+	@$(MAKE) PROJECT_FILE=$< BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX)
 
 
 ######################################################################
