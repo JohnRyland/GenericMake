@@ -375,8 +375,8 @@ $(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
 	@$(call LOG,------------------------------------)
 
 $(TEST_REPORT): $(TARGET_BIN)
-	@$< --help > /dev/null  # For code coverage reasons we invoke the help
-	@make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@
+	@$(if $(wildcard $<), $< --help > /dev/null,)  # For code coverage reasons we invoke the help
+	$(if $(wildcard $<), @make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@,touch $@)
 
 
 ######################################################################
