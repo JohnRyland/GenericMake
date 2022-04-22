@@ -308,6 +308,7 @@ $(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Generating coverage report --------)
 	$(if $(strip $(OBJECTS)),$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OUTPUT_DIR)/objs -o $@),touch $@)
+	cat $(GENMAKE_DIR)gcovr/index.css >> $(OUTPUT_DIR)/coverage/index.css
 
 
 ######################################################################
