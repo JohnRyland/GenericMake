@@ -13,7 +13,7 @@ This is a very light and simple build system which builds on top of standard mak
 
 It has some similarities to qmake in that most of the project specific details of
 what and how to build the project are inside a .pro project file. The syntax is also
-similar, with 'VAR=value' pairs. Because it is still just essentially a makefile though,
+similar, with `VAR=value` pairs. Because it is still just essentially a makefile though,
 anything you can do in make you can put in to the .pro file too.
 
 
@@ -31,21 +31,21 @@ SOURCES   = main.cpp
 
 ## Getting started
 
-In the example above, typically you would name this file 'HelloWorld.pro' inside your
+In the example above, typically you would name this file *HelloWorld.pro* inside your
 HelloWorld project directory. Then copy or symlink 'Bootstrap.mak' from this repo
-as 'Makefile' in to your project directory. Now you can run 'make' and it should build
+as *Makefile* in to your project directory. Now you can run 'make' and it should build
 the project for you.
 
 
 ## How to use
 
-When you copy 'Bootstrap.mak' file in to your project as 'Makefile', make will be able
+When you copy *Bootstrap.mak* file in to your project as *Makefile*, make will be able
 to execute a small amount of bootstrap code which will clone this repo (if it needs to)
-and then include the cloned Generic.mak file. This means that if you run 'make purge'
-and then run 'make' again, you will be on the latest version. The purge target will
+and then include the cloned Generic.mak file. This means that if you run `make purge`
+and then run `make` again, you will be on the latest version. The purge target will
 wipe away the clone and running make will fetch the latest copy.
 
-An alternative way you can use this in your projects is to copy the file 'Generic.mak' in
+An alternative way you can use this in your projects is to copy the file *Generic.mak* in
 to you project and rename it to Makefile. This will fix the version of GenericMake used by
 the project until it is manually updated by copying a new version over the top. You may also
 need to copy over some of the directories from here.
@@ -88,17 +88,17 @@ are automatically determined by the build system.
 
 Note that you are not restricted to only putting key-value pairs in the .pro files.
 You can add additional make rules if you wish. In the above example, it adds
-an additional dependency to the 'test' target which also needs to be run when building
-the test target (when you execute 'make test').
+an additional dependency to the *test* target which also needs to be run when building
+the test target (when you execute `make test`).
 
-Note the BRIEF, LOGO and DOCS keys. These are used in the generation of documentation.
+Note the *BRIEF*, *LOGO* and *DOCS* keys. These are used in the generation of documentation.
 Any markdown file in DOCS are converted to PDF using pandoc and an included template.
-The template can be a user supplied one by setting the PANDOC_TEMPLATE value. The BRIEF
-and LOGO values are used by the doxygen documentation generation. This build system
+The template can be a user supplied one by setting the *PANDOC_TEMPLATE* value. The *BRIEF*
+and *LOGO* values are used by the doxygen documentation generation. This build system
 gathers the list of files to pass to doxygen and generates a Doxyfile and then runs
 doxygen.
 
-Also notice in the SOURCES list is another .pro file. It can build sub-projects too,
+Also notice in the *SOURCES* list is another .pro file. It can build sub-projects too,
 and when it does this, it will gather a list of all the source files from the sub-projects
 to pass to doxygen.
 
@@ -148,7 +148,11 @@ This is a list of variables in .pro files which are used:
 ### Unit tests
 
 There is integration to run unit tests. It can be made to work with the TestFramework
-project. This can be included as a module like this:
+project.
+
+ - https://github.com/JohnRyland/TestFramework.git
+
+This can be included as a module like this:
 
 ```
 MODULES   = https://github.com/JohnRyland/TestFramework.git
@@ -158,10 +162,10 @@ Adding this to your .pro file will fetch this project in to a .modules directory
 Then targets which link against this can be built and run. The test framework tries to
 have some compatibilty with google-test and u-test in both source and usage. Similar
 to these test frameworks is a way to discover a list of tests. Running the test
-program with the command line option of '--list-tests' will output a list of the
-included unit tests. The build system when building the 'verify' target will do this
-to get a list of tests, and will run each one by using the '--filter' option to
-only execute one unit test at a time. And it uses the '--output' option to request
+program with the command line option of *--list-tests* will output a list of the
+included unit tests. The build system when building the *verify* target will do this
+to get a list of tests, and will run each one by using the *--filter* option to
+only execute one unit test at a time. And it uses the *--output* option to request
 an XML report output. These XML test run reports are output in to a testing directory
 in the .build folder.
 
@@ -172,8 +176,8 @@ adapt it to support these.
 
 ## Markdown to PDF
 
-In the subdirectory named 'pandoc' in this repo is an example template written in 'tex'
-and a background PDF. These are used by the 'pandoc' tool to be able to convert a
+In the subdirectory named *pandoc* in this repo is an example template written in *tex*
+and a background PDF. These are used by the *pandoc* tool to be able to convert a
 markdown file in to a nice looking PDF.
 
 For more ideas on using markdown to create PDF documentation using pandoc and templates
@@ -181,7 +185,7 @@ see this project which has many examples:
 
  - https://github.com/Wandmalfarbe/pandoc-latex-template/
 
-For making the background file, I used 'inkscape' to draw some shapes and saved this
+For making the background file, I used *inkscape* to draw some shapes and saved this
 as a SVG file. Because SVG is XML, it would be relatively simple to dynamically change
 colors or transform the background from a build system if required. To convert the
 SVG to PNG for passing to pandoc, I used this command:
