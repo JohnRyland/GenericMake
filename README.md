@@ -43,10 +43,10 @@ When you copy *Bootstrap.mak* file in to your project as *Makefile*, make will b
 to execute a small amount of bootstrap code which will clone this repo (if it needs to)
 and then include the cloned Generic.mak file. This means that if you run `make purge`
 and then run `make` again, you will be on the latest version. The purge target will
-wipe away the clone and running make will fetch the latest copy.
+wipe away the clone and running `make` will fetch the latest copy.
 
 An alternative way you can use this in your projects is to copy the file *Generic.mak* in
-to you project and rename it to Makefile. This will fix the version of GenericMake used by
+to you project and rename it to *Makefile*. This will fix the version of GenericMake used by
 the project until it is manually updated by copying a new version over the top. You may also
 need to copy over some of the directories from here.
 
@@ -100,7 +100,7 @@ doxygen.
 
 Also notice in the *SOURCES* list is another .pro file. It can build sub-projects too,
 and when it does this, it will gather a list of all the source files from the sub-projects
-to pass to doxygen.
+to pass to *doxygen*.
 
 
 ### Targets
@@ -160,7 +160,7 @@ MODULES   = https://github.com/JohnRyland/TestFramework.git
 
 Adding this to your .pro file will fetch this project in to a .modules directory.
 Then targets which link against this can be built and run. The test framework tries to
-have some compatibilty with google-test and u-test in both source and usage. Similar
+have some compatibilty with *google-test* and *u-test* in both source and usage. Similar
 to these test frameworks is a way to discover a list of tests. Running the test
 program with the command line option of *--list-tests* will output a list of the
 included unit tests. The build system when building the *verify* target will do this
@@ -169,7 +169,7 @@ only execute one unit test at a time. And it uses the *--output* option to reque
 an XML report output. These XML test run reports are output in to a testing directory
 in the .build folder.
 
-The build system hasn't been tested with google-test or u-test yet, so integration with
+The build system hasn't been tested with *google-test* or *u-test* yet, so integration with
 these might not currently work, but it expected that it would not be too difficult to
 adapt it to support these.
 
@@ -188,14 +188,14 @@ see this project which has many examples:
 For making the background file, I used *inkscape* to draw some shapes and saved this
 as a SVG file. Because SVG is XML, it would be relatively simple to dynamically change
 colors or transform the background from a build system if required. To convert the
-SVG to PNG for passing to pandoc, I used this command:
+SVG to PNG for passing to *pandoc*, I used this command:
 
 ```
 rsvg-convert -f pdf background.svg -o background.pdf
 ```
 
-Setting PANDOC_TEMPLATE in your .pro file allows you to use an alternative to the supplied
-template.tex file which is what currently includes background.pdf as the background.
+Setting *PANDOC_TEMPLATE* in your .pro file allows you to use an alternative to the supplied
+*template.tex* file which is what currently includes *background.pdf* as the background.
 
 
 ##  Editor integration
