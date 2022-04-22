@@ -11,7 +11,7 @@ All rights reserved.
 This is a very light and simple build system which builds on top of standard make.
 It has some similarities to qmake in that most of the project specific details of
 what and how to build the project are inside a .pro project file. The syntax is also
-similar, with VAR=valuei pairs. Because it is still just essentially a makefile though,
+similar, with `VAR=value` pairs. Because it is still just essentially a makefile though,
 anything you can do in make you can put in to the .pro file too.
 
 

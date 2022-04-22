@@ -85,13 +85,13 @@ STRIP_FLAGS   = -S
 BASE_DIR      =
 # output directories are prefixed with the sub-project paths to avoid collisions and for distinct intermediate targets
 OUTPUT_DIR    = $(TEMP_DIR)/$(BASE_DIR)$(BUILD_TYPE)
-DOCS_DIR      = $(TEMP_DIR)/$(BASE_DIR)docs
+DOCS_DIR      = $(TEMP_DIR)/docs
 # REL_SOURCES is the expanded paths to sources (no longer relative to the sub-project, but relative to the parent) 
 REL_SOURCES   = $(patsubst %,$(BASE_DIR)%,$(SOURCES))
 CODE          = $(filter %.c %.cpp %.S,$(REL_SOURCES))
 OBJECTS       = $(CODE:%=$(OUTPUT_DIR)/objs/%.o)
 SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(REL_SOURCES))
-SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(REL_SOURCES))
+SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(filter %.pro,$(REL_SOURCES)))
 DEPENDS       = $(OBJECTS:$(OUTPUT_DIR)/objs/%.o=$(OUTPUT_DIR)/deps/%.d)
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
@@ -103,7 +103,6 @@ MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_FILE  = $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
-CODE_FILES    = $(patsubst %, ./%, $(CODE) $(wildcard *.h *.hpp) $(foreach incdir,$(INCLUDES),$(wildcard ${incdir}/*.h ${incdir}/*.hpp)))
 PACKAGE_NAME  = $(PROJECT).zip
 
 
@@ -243,7 +242,7 @@ $(PROJECT_FILE):
 	@echo CXXFLAGS     = -std=c++11>> $@
 	@echo LFLAGS       = >> $@
 
-$(TAGS): $(CODE_FILES)
+$(TAGS): $(ALL_SOURCES)
 	@$(call LOG, Updating tags ---------------------)
 	@$(call MKDIR,$(dir $@))
 	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
@@ -256,11 +255,11 @@ $(TAGS): $(CODE_FILES)
 
 $(OUTPUT_DIR)/deps/%.cpp.d: %.cpp $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
-	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(OUTPUT_DIR)/objs/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
+	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(OUTPUT_DIR)/objs/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MD -E $< -MF $@ > $(NULL)
 
 $(OUTPUT_DIR)/deps/%.c.d: %.c $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
-	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OUTPUT_DIR)/objs/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ project -MD -E $< -MF $@ > $(NULL)
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OUTPUT_DIR)/objs/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MD -E $< -MF $@ > $(NULL)
 
 $(OUTPUT_DIR)/objs/%.cpp.o: %.cpp $(OUTPUT_DIR)/deps/%.cpp.d
 	@$(call MKDIR,$(dir $@))
@@ -343,13 +342,13 @@ $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.me
 ######################################################################
 ##  Doxygen
 
-$(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(CODE_FILES) $(DOCS)
+$(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(ALL_SOURCES) $(DOCS)
 	@$(call MKDIR,$(dir $@))
 	@echo PROJECT_NAME           = $(PROJECT) > $@
 	@echo PROJECT_BRIEF          = $(BRIEF) >> $@
 	@echo PROJECT_LOGO           = $(LOGO) >> $@
 	@echo OUTPUT_DIRECTORY       = $(DOCS_DIR) >> $@
-	@echo INPUT                  = $(CODE_FILES) $(DOCS) >> $@
+	@echo INPUT                  = $(ALL_SOURCES) $(DOCS) >> $@
 	@echo USE_MDFILE_AS_MAINPAGE = $(firstword $(DOCS)) >> $@
 	@echo LAYOUT_FILE            = $(GENMAKE_DIR)doxygen/layout.xml >> $@
 	@echo HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html >> $@
@@ -360,7 +359,7 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(CODE_FILES) $(DOCS)
 	@echo DOT_PATH               = $(dir $(shell which dot)) >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
-$(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(CODE_FILES) $(DOCS)
+$(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(ALL_SOURCES) $(DOCS)
 	@$(call LOG, Doxygen ---------------------------)
 	@$(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
 
@@ -377,7 +376,6 @@ $(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
 $(TEST_REPORT): $(TARGET_BIN)
 	@$(if $(wildcard $<), $< --help > /dev/null,)  # For code coverage reasons we invoke the help
 	$(if $(wildcard $<), @make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@,touch $@)
-
 
 ######################################################################
 ##  Editor integrations
@@ -405,8 +403,9 @@ endef
 project:
 	@printf '$(PROJECT)\n┃\n'
 	$(call generate_tree_items,┃ ,┣━ Targets,    $(filter %,$(TARGET)))
-	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c,$^) $(filter %.cpp,$^))
-	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter-out /%,$(filter %.h,$^) $(filter %.hpp,$^)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c,$(ALL_SOURCES)) $(filter %.cpp,$(ALL_SOURCES)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter %.h,$(ALL_SOURCES)) $(filter %.hpp,$(ALL_SOURCES)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Sub-projects, $(filter %.pro,$(ALL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)) $(filter %.txt,$(DOCS)) $(filter %.html,$(DOCS)))
 	$(call generate_tree_items,  ,┃\n┗━ Project, $(wildcard $(filter-out %.d,$(MAKEFILE_LIST))))
 
@@ -477,6 +476,15 @@ info:
 	@echo " Fake targets:"
 	@echo "   $(FAKE_TARGETS)"
 	@echo ""
+
+direct_sources:
+	@printf '$(CODE) $(filter-out /%,$(filter %.h,$^) $(filter %.hpp,$^)) $(foreach pro,$(SUBPROJECTS),$(pro:%.subproject_target=%.pro)) '
+
+# Recursively gather all the sources of all the child projects
+all_sources: direct_sources
+	@$(foreach pro,$(SUBPROJECTS), $(MAKE) -s PROJECT_FILE=$(pro:%.subproject_target=%.pro) BASE_DIR="$(dir $(pro:%.subproject_target=%.pro))" all_sources)
+
+ALL_SOURCES=$(shell $(MAKE) all_sources)
 
 clean:
 	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(PDFS) $(DEPENDS) $(TARGET_BIN)))
