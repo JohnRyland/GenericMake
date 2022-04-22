@@ -405,7 +405,7 @@ project:
 	$(call generate_tree_items,┃ ,┣━ Targets,    $(filter %,$(TARGET)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c,$(ALL_SOURCES)) $(filter %.cpp,$(ALL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter %.h,$(ALL_SOURCES)) $(filter %.hpp,$(ALL_SOURCES)))
-	$(call generate_tree_items,┃ ,┃\n┣━ Sub-projects, $(filter %.pro,$(ALL_SOURCES)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Subprojects, $(filter %.pro,$(ALL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)) $(filter %.txt,$(DOCS)) $(filter %.html,$(DOCS)))
 	$(call generate_tree_items,  ,┃\n┗━ Project, $(wildcard $(filter-out %.d,$(MAKEFILE_LIST))))
 
@@ -478,13 +478,15 @@ info:
 	@echo ""
 
 direct_sources:
-	@printf '$(CODE) $(filter-out /%,$(filter %.h,$^) $(filter %.hpp,$^)) $(foreach pro,$(SUBPROJECTS),$(pro:%.subproject_target=%.pro)) '
+	@printf '$(foreach file,$(CODE) $(filter-out /%,$(filter %.h,$^) $(filter %.hpp,$^)) $(foreach pro,$(SUBPROJECTS),$(pro:%.subproject_target=%.pro)), $(realpath $(file))) '
+
+%.subproject_sources: %.pro
+	@$(MAKE) -s PROJECT_FILE=$< BASE_DIR="$(dir $<)" sources
 
 # Recursively gather all the sources of all the child projects
-all_sources: direct_sources
-	@$(foreach pro,$(SUBPROJECTS), $(MAKE) -s PROJECT_FILE=$(pro:%.subproject_target=%.pro) BASE_DIR="$(dir $(pro:%.subproject_target=%.pro))" all_sources)
+sources: direct_sources $(SUBPROJECTS:%.subproject_target=%.subproject_sources)
 
-ALL_SOURCES=$(shell $(MAKE) all_sources)
+ALL_SOURCES=$(sort $(shell $(MAKE) sources))
 
 clean:
 	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(PDFS) $(DEPENDS) $(TARGET_BIN)))
