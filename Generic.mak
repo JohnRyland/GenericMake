@@ -514,7 +514,7 @@ MODULE_EXPORT_SOURCE_TARGETS=$(MODULE_PROS:%.pro=%.subproject_exported_sources)
 direct_includes:
 	@printf '$(INCLUDES:%=$(BASE_DIR)%) '
 direct_sources:
-	@printf '$(filter-out %.pro,$(SOURCES:%=$(BASE_DIR)%)) '
+	@printf '$(SOURCES:%=$(BASE_DIR)%) '
 direct_exported_includes:
 	@printf '$(EXPORTED_INCLUDES:%=$(BASE_DIR)%) '
 direct_exported_sources:
