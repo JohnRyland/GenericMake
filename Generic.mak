@@ -102,12 +102,19 @@ DOCS_DIR      = $(TEMP_DIR)/docs
 ALL_SOURCES   = $(sort $(shell $(MAKE) ALL_SOURCES= $(PASS_THRU_ARGS) direct_sources exported_sources))
 ALL_INCLUDES  = $(sort $(shell $(MAKE) ALL_INCLUDES= $(PASS_THRU_ARGS) includes exported_includes))
 FULL_SOURCES  = $(sort $(abspath $(shell $(MAKE) FULL_SOURCES= $(PASS_THRU_ARGS) sources exported_sources)))
-REL_SOURCES_1 = $(sort $(abspath $(ALL_SOURCES)))
-REL_SOURCES   = $(REL_SOURCES_1:$(CUR_DIR)/%=%)
+ABS_SOURCES   = $(sort $(abspath $(ALL_SOURCES)))
+REL_SOURCES   = $(ABS_SOURCES:$(CUR_DIR)/%=%)
+
+# TODO: Can't make it work with full recursive sources - means for docs and tags, it won't have sub-project symbols etc
+FULL_CODE     = $(filter %.c %.cpp %.S,$(REL_SOURCES))
+
+# ALL includes .pro and Makefile files, full is recursive and includes .pro and Makefiles
+_FULL_CODE     = $(filter %.c %.cpp %.S,$(FULL_SOURCES:$(CUR_DIR)/%=%))
+
 CODE          = $(filter %.c %.cpp %.S,$(REL_SOURCES))
 OBJECTS       = $(CODE:%=$(OBJS_DIR)/%.o)
 DEPENDS       = $(OBJECTS:$(OBJS_DIR)/%.o=$(DEPS_DIR)/%.d)
-SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(REL_SOURCES))
+SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(filter %/Makefile,$(SOURCES:%=$(BASE_DIR)%)))
 SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(filter %.pro,$(SOURCES:%=$(BASE_DIR)%)))
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
@@ -259,7 +266,7 @@ $(PROJECT_FILE):
 	@echo CXXFLAGS     = -std=c++11>> $@
 	@echo LFLAGS       = >> $@
 
-$(TAGS): $(ALL_SOURCES)
+$(TAGS): $(FULL_CODE)
 	@$(call LOG, Updating tags ---------------------)
 	@$(call MKDIR,$(dir $@))
 	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
@@ -362,13 +369,13 @@ $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.me
 ######################################################################
 ##  Doxygen
 
-$(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(ALL_SOURCES) $(DOCS)
+$(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(FULL_CODE) $(DOCS)
 	@$(call MKDIR,$(dir $@))
 	@echo PROJECT_NAME           = $(PROJECT) > $@
 	@echo PROJECT_BRIEF          = $(BRIEF) >> $@
 	@echo PROJECT_LOGO           = $(LOGO) >> $@
 	@echo OUTPUT_DIRECTORY       = $(DOCS_DIR) >> $@
-	@echo INPUT                  = $(ALL_SOURCES) $(DOCS) >> $@
+	@echo INPUT                  = $(FULL_CODE) $(DOCS) >> $@
 	@echo USE_MDFILE_AS_MAINPAGE = $(firstword $(DOCS)) >> $@
 	@echo LAYOUT_FILE            = $(GENMAKE_DIR)doxygen/layout.xml >> $@
 	@echo HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html >> $@
@@ -379,7 +386,7 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(ALL_SOURCES) $(DOCS)
 	@echo DOT_PATH               = $(dir $(shell which dot)) >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
-$(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(ALL_SOURCES) $(DOCS)
+$(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(FULL_CODE) $(DOCS)
 	@$(call LOG, Doxygen ---------------------------)
 	@$(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
 
@@ -519,8 +526,6 @@ direct_exported_includes:
 	@printf '$(EXPORTED_INCLUDES:%=$(BASE_DIR)%) '
 direct_exported_sources:
 	@printf '$(EXPORTED_SOURCES:%=$(BASE_DIR)%) '
-
-# .SUFFIXES: .pro .subproject_sources .subproject_exported_includes .subproject_exported_sources .subproject_includes
 
 %.subproject_sources: %.pro
 	@$(MAKE) -s $(PASS_THRU_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" sources
