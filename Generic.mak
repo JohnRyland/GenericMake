@@ -55,8 +55,8 @@ ifneq (,$(findstring Windows,$(OS)))
   GREP        = 
   NULL       := nul
 else
-  UNAME      := $(shell uname -s)
-  ARCH       := $(shell uname -m)
+  UNAME      ?= $(shell uname -s)
+  ARCH       ?= $(shell uname -m)
   TARGET_EXT :=
   DEL        := rm 
   RMDIR      := rm -rf
@@ -84,7 +84,7 @@ GCOVR         = gcovr
 C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(ALL_INCLUDES:%=-I%)
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(BUILD_TYPE_FLAGS)
-LINK_LIBS     = $(LIBRARIES:%=-l%)
+LINK_LIBS     = $(LIBRARIES:%=-l%) $(LIBS)
 STRIP_FLAGS   = -S
 
 
@@ -99,17 +99,19 @@ CUR_DIR       = $(realpath .)
 OBJS_DIR      = $(OUTPUT_DIR)/objs
 DEPS_DIR      = $(OUTPUT_DIR)/deps
 DOCS_DIR      = $(TEMP_DIR)/docs
-ALL_SOURCES   = $(sort $(shell $(MAKE) ALL_SOURCES= $(PASS_THRU_ARGS) direct_sources exported_sources))
-ALL_INCLUDES  = $(sort $(shell $(MAKE) ALL_INCLUDES= $(PASS_THRU_ARGS) includes exported_includes))
-FULL_SOURCES  = $(sort $(abspath $(shell $(MAKE) FULL_SOURCES= $(PASS_THRU_ARGS) sources exported_sources)))
-ABS_SOURCES   = $(sort $(abspath $(ALL_SOURCES)))
+ALL_SOURCES   ?= $(sort $(shell $(MAKE) ALL_SOURCES= $(PASS_THRU_ARGS) direct_sources exported_sources))
+ALL_INCLUDES  ?= $(sort $(shell $(MAKE) ALL_SOURCES= ALL_INCLUDES= $(PASS_THRU_ARGS) includes exported_includes))
+FULL_SOURCES_IN ?= $(sort $(abspath $(shell $(MAKE) ALL_SOURCES= ALL_INCLUDES= FULL_SOURCES_IN= $(PASS_THRU_ARGS) sources exported_sources)))
+FULL_SOURCES   := $(FULL_SOURCES_IN)
+ALL_SOURCES_CP := $(ALL_SOURCES)
+ABS_SOURCES   = $(sort $(abspath $(ALL_SOURCES_CP)))
 REL_SOURCES   = $(ABS_SOURCES:$(CUR_DIR)/%=%)
 
 # TODO: Can't make it work with full recursive sources - means for docs and tags, it won't have sub-project symbols etc
 FULL_CODE     = $(filter %.c %.cpp %.S,$(REL_SOURCES))
 
 # ALL includes .pro and Makefile files, full is recursive and includes .pro and Makefiles
-_FULL_CODE     = $(filter %.c %.cpp %.S,$(FULL_SOURCES:$(CUR_DIR)/%=%))
+# FULL_CODE     = $(filter %.c %.cpp %.S,$(FULL_SOURCES:$(CUR_DIR)/%=%))
 
 CODE          = $(filter %.c %.cpp %.S,$(REL_SOURCES))
 OBJECTS       = $(CODE:%=$(OBJS_DIR)/%.o)
@@ -135,7 +137,7 @@ PACKAGE_NAME  = $(PROJECT).zip
 BUILD_TYPE        = release
 BUILD_TYPE_FLAGS  = -DNDEBUG
 BUILD_TYPE_SUFFIX =
-PASS_THRU_ARGS    = DEPENDS= BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) # COMPILER=$(COMPILER) COMPILER_VER=$(COMPILER_VER)
+PASS_THRU_ARGS    = DEPENDS= UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) # COMPILER=$(COMPILER) COMPILER_VER=$(COMPILER_VER)
 
 all: release
 
@@ -159,24 +161,25 @@ TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(BUILD_TYPE_SUFFIX)$(TARGET_EXT)
 TAGS         = $(TEMP_DIR)/tags
 TEST_REPORT  = $(TEMP_DIR)/$(BUILD_TYPE)/Testing/$(BASE_DIR)test-report.txt
 TEST_XML_DIR = $(TEMP_DIR)/$(BUILD_TYPE)/Testing/$(BASE_DIR)/xml
-
+# E is variable used for preserving leading whitespace when calling $(info)
+E:=
 
 ######################################################################
 ##  Package/Module management
 
 # Rules for getting git modules
 $(MODULES_DIR)/%/.git:
-	@echo "Fetching module: $(@:$(MODULES_DIR)/%/.git=%)"
+	@$(info Fetching module: $(@:$(MODULES_DIR)/%/.git=%))
 	@git clone $(filter %$(@:$(MODULES_DIR)/%/.git=%.git),$(MODULES)) $(@:%/.git=%) 2> /dev/null
 
 # Rules for downloading .tar.gz modules
 .cache/%.tar.gz:
-	@echo "Downloading module: $(@:.cache/%.tar.gz=%)"
+	@$(info Downloading module: $(@:.cache/%.tar.gz=%))
 	@curl -L $(filter %$(@:.cache/%=%),$(MODULES)) --create-dirs -o $@ 2> /dev/null
 
 # Rules for extracting .tar.gz modules
 $(MODULES_DIR)/%/.extracted.tar.gz: .cache/%.tar.gz
-	@echo "Extracting module: $(@:$(MODULES_DIR)/%/.extracted.tar.gz=%)"
+	@$(info Extracting module: $(@:$(MODULES_DIR)/%/.extracted.tar.gz=%))
 	@mkdir -p $(MODULES_DIR) ; cd $(MODULES_DIR) ; tar zxf $(@:$(MODULES_DIR)/%/.extracted.tar.gz=../.cache/%.tar.gz)
 	@touch $@
 
@@ -194,7 +197,7 @@ MODULE_DEPS=$(GIT_MODULES) $(TGZ_MODULES)
 
 INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), ">>" ">>>>" ">>>>>>" ">>>>>>>>" ">>>>>>>>>>" ">>>>>>>>>>>>"),"")
 POST_INDENT = $(if $(filter-out 0,$(MAKELEVEL)),$(word $(MAKELEVEL), "----------" "--------" "------" "----" "--"),"------------")
-LOG = printf '$(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT))$(if $(filter-out 0 1,$(MAKELEVEL)),\n,\n)'
+LOG = $(info $(subst ",,$(call INDENT) --$(1)-------------------------------------------$(call POST_INDENT)))
 
 
 ######################################################################
@@ -205,7 +208,7 @@ compiling:
 
 run: $(TARGET_BIN)
 	@$(call LOG, Running ---------------------------)
-	$(if $(wildcard $(TARGET_BIN)),$(TARGET_BIN) --debug && echo PASSED)
+	$(if $(wildcard $(TARGET_BIN)),$(TARGET_BIN) --debug && $(info PASSED))
 
 todos:
 	@$(call LOG, Finding todos ---------------------)
@@ -242,29 +245,29 @@ package: $(PACKAGE_NAME)
 build_and_run: build run done
 
 release:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
+	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
 
 debug:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
+	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
 
 profile:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
+	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
 
 test:
-	@$(MAKE) -f $(MAKEFILE) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
+	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
 
 $(PROJECT_FILE):
-	@echo Generating project file as $@
-	@echo PROJECT      = $(BASENAME)> $@
-	@echo TARGET       = $(BASENAME)>> $@
-	@echo SOURCES      = $(wildcard *.c *.cpp)>> $@
-	@echo DOCS         = $(wildcard *.md *.txt *.html)>> $@
-	@echo DEFINES      = >> $@
-	@echo INCLUDES     = >> $@
-	@echo LIBRARIES    = m>> $@
-	@echo CFLAGS       = -Wall>> $@
-	@echo CXXFLAGS     = -std=c++11>> $@
-	@echo LFLAGS       = >> $@
+	@$(info Generating project file as $@)
+	@echo 'PROJECT   = $(BASENAME)' > $@
+	@echo 'TARGET    = $(BASENAME)' >> $@
+	@echo 'SOURCES   = $(wildcard *.c *.cpp)' >> $@
+	@echo 'DOCS      = $(wildcard *.md *.txt *.html)' >> $@
+	@echo 'DEFINES   = ' >> $@
+	@echo 'INCLUDES  = ' >> $@
+	@echo 'LIBRARIES = m' >> $@
+	@echo 'CFLAGS    = -Wall' >> $@
+	@echo 'CXXFLAGS  = -std=c++11' >> $@
+	@echo 'LFLAGS    = ' >> $@
 
 $(TAGS): $(FULL_CODE)
 	@$(call LOG, Updating tags ---------------------)
@@ -275,15 +278,16 @@ $(TAGS): $(FULL_CODE)
 ######################################################################
 ##  Implicit rules
 
+.SUFFIXES: # delete the default suffixes
 .SUFFIXES: .cpp .c
 
 $(DEPS_DIR)/%.cpp.d: %.cpp $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
-	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(OBJS_DIR)/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MD -E $< -MF $@ > $(NULL)
+	@$(CXX) $(CXX_FLAGS) -MT $(patsubst %.cpp, $(OBJS_DIR)/%.cpp.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MMD -E $< -MF $@ > $(NULL)
 
 $(DEPS_DIR)/%.c.d: %.c $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
-	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OBJS_DIR)/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MD -E $< -MF $@ > $(NULL)
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OBJS_DIR)/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MMD -E $< -MF $@ > $(NULL)
 
 $(OBJS_DIR)/%.cpp.o: %.cpp $(DEPS_DIR)/%.cpp.d
 	@$(call MKDIR,$(dir $@))
@@ -318,12 +322,10 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 
 %/subdir_target:
 	@$(call LOG, $< $(patsubst %/subdir_target,%,$@) -----------)
-	@# $(MAKE) -C $(patsubst %/subdir_target,%,$@) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) $(BUILD_TYPE)
 	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) $(PASS_THRU_ARGS) $(BUILD_TYPE)
 
 %.subproject_target: %.pro
 	@$(call LOG, $< ---------------)
-	@# $(MAKE) PROJECT_FILE=$< BASE_DIR="$(dir $<)" BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) $(BUILD_TYPE)
 	@$(MAKE) PROJECT_FILE=$< BASE_DIR="$(dir $<)" $(PASS_THRU_ARGS) $(BUILD_TYPE)
 
 
@@ -355,11 +357,11 @@ $(DOCS_DIR)/logo.pdf: $(LOGO)
 
 $(DOCS_DIR)/%.meta:
 	@$(call MKDIR,$(dir $@))
-	@echo title:        $(PROJECT) > $@
-	@echo subtitle:     $(BRIEF) >> $@
-	@echo background:   $(GENMAKE_DIR)pandoc/background.pdf >> $@
-	@echo logo:         $(if $(LOGO),$(DOCS_DIR)/logo.pdf) >> $@
-	@echo author:       $(shell git config user.name) >> $@
+	@echo 'title:        $(PROJECT)' >> $@
+	@echo 'subtitle:     $(BRIEF)' >> $@
+	@echo 'background:   $(GENMAKE_DIR)pandoc/background.pdf' >> $@
+	@echo 'logo:         $(if $(LOGO),$(DOCS_DIR)/logo.pdf)' >> $@
+	@echo 'author:       $(shell git config user.name)' >> $@
 
 $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.meta
 	@$(call MKDIR,$(dir $@))
@@ -371,19 +373,19 @@ $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.me
 
 $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(FULL_CODE) $(DOCS)
 	@$(call MKDIR,$(dir $@))
-	@echo PROJECT_NAME           = $(PROJECT) > $@
-	@echo PROJECT_BRIEF          = $(BRIEF) >> $@
-	@echo PROJECT_LOGO           = $(LOGO) >> $@
-	@echo OUTPUT_DIRECTORY       = $(DOCS_DIR) >> $@
-	@echo INPUT                  = $(FULL_CODE) $(DOCS) >> $@
-	@echo USE_MDFILE_AS_MAINPAGE = $(firstword $(DOCS)) >> $@
-	@echo LAYOUT_FILE            = $(GENMAKE_DIR)doxygen/layout.xml >> $@
-	@echo HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html >> $@
-	@echo HTML_FOOTER            = $(GENMAKE_DIR)doxygen/footer.html >> $@
-	@echo HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css >> $@
-	@echo PLANTUML_JAR_PATH      = $(if $(shell which plantuml),$(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g')) >> $@
-	@echo HAVE_DOT               = $(if $(shell which dot),YES,NO) >> $@
-	@echo DOT_PATH               = $(dir $(shell which dot)) >> $@
+	@echo 'PROJECT_NAME           = $(PROJECT)' > $@
+	@echo 'PROJECT_BRIEF          = $(BRIEF)' >> $@
+	@echo 'PROJECT_LOGO           = $(LOGO)' >> $@
+	@echo 'OUTPUT_DIRECTORY       = $(DOCS_DIR)' >> $@
+	@echo 'INPUT                  = $(FULL_CODE) $(DOCS)' >> $@
+	@echo 'USE_MDFILE_AS_MAINPAGE = $(firstword $(DOCS))' >> $@
+	@echo 'LAYOUT_FILE            = $(GENMAKE_DIR)doxygen/layout.xml' >> $@
+	@echo 'HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html' >> $@
+	@echo 'HTML_FOOTER            = $(GENMAKE_DIR)doxygen/footer.html' >> $@
+	@echo 'HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css' >> $@
+	@echo 'PLANTUML_JAR_PATH      = $(if $(shell which plantuml),$(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g'))' >> $@
+	@echo 'HAVE_DOT               = $(if $(shell which dot),YES,NO)' >> $@
+	@echo 'DOT_PATH               = $(dir $(shell which dot))' >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
 $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(FULL_CODE) $(DOCS)
@@ -396,14 +398,14 @@ $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(FULL_CODE) $(DOCS)
 
 $(TEST_XML_DIR)/%.xml: ${TARGET_BIN}
 	@mkdir -p $(dir $@)
-	@echo Running $(patsubst $(TEST_XML_DIR)/%.xml,%,$@) unit test
+	@$(info Running $(patsubst $(TEST_XML_DIR)/%.xml,%,$@) unit test)
 	@$< --filter=$(patsubst $(TEST_XML_DIR)/%.xml,%,$@) --output=$@
 	@$(call LOG,------------------------------------)
 
 $(TEST_REPORT): $(TARGET_BIN)
 	@mkdir -p $(dir $@)
 	@$(if $(wildcard $<), $< --help > /dev/null,)  # For code coverage reasons we invoke the help
-	$(if $(wildcard $<), @make $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@,touch $@)
+	$(if $(wildcard $<), @$(MAKE) $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@,touch $@)
 
 ######################################################################
 ##  Editor integrations
@@ -420,6 +422,14 @@ $(TEST_REPORT): $(TARGET_BIN)
 # The targets then help to tell vim where to search for includes,
 # other files in the project, debugging options etc. Possibly other
 # editors might be able to be configured to do something similar.
+
+define generate_tree_items2
+	@$(if $(2), $(info $(2)))
+	@$(info $(3))
+	$(eval ITEMS := $(4))
+	$(eval LAST := $(if $(ITEMS),$(word $(words $(ITEMS)), $(ITEMS)),))
+	@$(info $(foreach F, $(ITEMS),$(info $(1) $(if $(filter $F,$(LAST)),┗━,┣━) $(notdir $F) \t $(abspath $F))))
+endef
 
 define generate_tree_items
 	@printf '$(2)'
@@ -442,14 +452,16 @@ vim_project_support:
 
 # Output the user search paths (for vim/editor integration)
 paths:
-	@echo $(INCLUDES)
+	@$(info $(INCLUDES))
+	@:
 
 # Output the searched system paths the compiler will use (for vim/editor integration)
 system_paths:
 	@echo | $(CXX) -Wp,-v -x c++ - -fsyntax-only 2>&1 | grep "^ " | grep -v "(" | tr -d "\n"
 
 dependancies:
-	@echo $(patsubst %,\'%\',$^)
+	@$(info $(patsubst %,'%',$^))
+	@:
 
 lldb-nvim.json: $(PROJECT_FILE)
 	@echo ' {' > $@
@@ -471,39 +483,44 @@ REAL_TARGETS = $(MAKE_TARGETS) | sort | uniq | grep -E -v $(shell echo $(FAKE_TA
 null:
 
 verify: $(TEST_REPORT)
-	@echo ""
-	@echo " Test Results:"
-	@echo "   PASS count: "`grep -c "PASS" $<`
-	@echo "   FAIL count: "`grep -c "FAIL" $<`
-	@echo ""
+	@$(info $E)
+	@$(info $E Test Results:)
+	@$(info $E   PASS count: $(shell grep -c "PASS" $<))
+	@$(info $E   FAIL count: $(shell grep -c "FAIL" $<))
+	@$(info $E)
+	@:
 
 help:
-	@echo ""
-	@echo " Usage:"
-	@echo "   $(MAKE) [target]"
-	@echo ""
-	@echo " Targets:"
-	@echo "   $(foreach target,$(shell $(MAKE_TARGETS)),$(target)\n  )"
-	@echo ""
+	@$(info $E)
+	@$(info $E Usage:)
+	@$(info $E   $(MAKE) [target])
+	@$(info $E)
+	@$(info $E Targets:)
+	@$(foreach target,$(shell $(MAKE_TARGETS)),$(info $E   $(target)))
+	@$(info $E)
+	@:
 
 info:
-	@echo ""
-	@echo " Info:"
-	@echo "   BASENAME     = $(BASENAME)"
-	@echo "   MAKEFILE_DIR = $(MAKEFILE_DIR)"
-	@echo "   PROJECT_FILE = $(PROJECT_FILE)"
-	@echo "   PLATFORM     = $(PLATFORM)"
-	@echo "   ARCH         = $(ARCH)"
-	@echo "   COMPILER     = $(COMPILER)"
-	@echo "   VERSION      = $(COMPILER_VER)"
-	@echo ""
-	@echo " Make targets:"
-	@echo "   "`$(MAKE_TARGETS)`
-	@echo " Real targets:"
-	@echo "   "`$(REAL_TARGETS)`
-	@echo " Fake targets:"
-	@echo "   $(FAKE_TARGETS)"
-	@echo ""
+	@$(info $E)
+	@$(info $E Info:)
+	@$(info $E   BASENAME     = $(BASENAME))
+	@$(info $E   MAKEFILE_DIR = $(MAKEFILE_DIR))
+	@$(info $E   PROJECT_FILE = $(PROJECT_FILE))
+	@$(info $E   PLATFORM     = $(PLATFORM))
+	@$(info $E   ARCH         = $(ARCH))
+	@$(info $E   COMPILER     = $(COMPILER))
+	@$(info $E   VERSION      = $(COMPILER_VER))
+	@$(info $E)
+	@$(info $E Make targets:)
+	@$(info $E   $(shell $(MAKE_TARGETS)))
+	@$(info $E)
+	@$(info $E Real targets:)
+	@$(info $E   $(shell $(REAL_TARGETS)))
+	@$(info $E)
+	@$(info $E Fake targets:)
+	@$(info $E   $(FAKE_TARGETS))
+	@$(info $E)
+	@:
 
 
 clean:
@@ -519,7 +536,7 @@ MODULE_EXPORT_INCLUDE_TARGETS=$(MODULE_PROS:%.pro=%.subproject_exported_includes
 MODULE_EXPORT_SOURCE_TARGETS=$(MODULE_PROS:%.pro=%.subproject_exported_sources)
 
 direct_includes:
-	@printf '$(INCLUDES:%=$(BASE_DIR)%) '
+	@printf '$(INCLUDES:%=$(BASE_DIR)%) $(INCLUDEPATH:%=$(BASE_DIR)%) '
 direct_sources:
 	@printf '$(SOURCES:%=$(BASE_DIR)%) '
 direct_exported_includes:
@@ -543,4 +560,13 @@ includes: direct_includes $(SUBPROJECT_INCLUDE_TARGETS)
 # Non-recursively get the exported include paths and sources of the directly included modules
 exported_includes: direct_exported_includes $(MODULE_EXPORT_INCLUDE_TARGETS)
 exported_sources: direct_exported_sources $(MODULE_EXPORT_SOURCE_TARGETS)
+
+# For debugging purposes, keep the depends files
+.PRECIOUS: $(DEPENDS)
+
+# Avoid looking for rules to generate Makefile
+Makefile: ;
+
+# Avoid looking for rules to generate our source files
+$(SOURCES): ;
 
