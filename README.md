@@ -46,7 +46,7 @@ and then run `make` again, you will be on the latest version. The purge target w
 wipe away the clone and running `make` will fetch the latest copy.
 
 An alternative way you can use this in your projects is to copy the file *Generic.mak* in
-to you project and rename it to *Makefile*. This will fix the version of GenericMake used by
+to your project and rename it to *Makefile*. This will fix the version of GenericMake used by
 the project until it is manually updated by copying a new version over the top. You may also
 need to copy over some of the directories from here.
 
