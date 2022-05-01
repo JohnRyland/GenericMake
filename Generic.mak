@@ -219,7 +219,7 @@ compiling:
 
 run: $(TARGET_BIN)
 	@$(call LOG, Running ---------------------------)
-	$(if $(wildcard $(TARGET_BIN)),$(TARGET_BIN) --debug && $(info PASSED))
+	$(if $(wildcard $(TARGET_BIN)),$(TARGET_BIN) --debug && echo PASSED)
 
 todos:
 	@$(call LOG, Finding todos ---------------------)
