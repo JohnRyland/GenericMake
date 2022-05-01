@@ -97,9 +97,12 @@ STRIP_FLAGS   = -S
 
 # $(info Updating $(PROJECT_FILE) deps)
 
+# adding FOR_FILE=path/filename.ext will build the target relative to the path. So if filename.ext is inside
+# of an sub-project, and the target is 'debug', then it will build and run just the sub-project.
+
 # BASE_DIR is set for sub-project builds and is the relative path to the sub-project
 # output directories are prefixed with the sub-project paths to avoid collisions and for distinct intermediate targets
-BASE_DIR     ?=
+BASE_DIR     ?= $(if $(FOR_FILE),$(patsubst $(CURRENT_DIR)/%,%/,$(abspath $(dir $(FOR_FILE)))))
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
 CUR_DIR       = $(realpath .)
 OBJS_DIR      = $(OUTPUT_DIR)/objs
@@ -137,7 +140,9 @@ COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-PROJECT_FILE ?= $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
+SUB_BASENAME  = $(BASE_DIR)$(notdir $(BASE_DIR:%/=%))
+SUB_PROJECT_FILE = $(if $(wildcard $(SUB_BASENAME).pro),$(SUB_BASENAME).pro,$(firstword $(wildcard $(BASE_DIR)*.pro) $(SUB_BASENAME).pro))
+PROJECT_FILE ?= $(if $(FOR_FILE),$(SUB_PROJECT_FILE),$(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro)))
 PACKAGE_NAME  = $(PROJECT).zip
 
 
