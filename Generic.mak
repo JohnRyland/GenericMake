@@ -54,8 +54,9 @@ ifneq (,$(findstring Windows,$(OS)))
   MKDIR       = if not exist $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
   GREP        = 
   NULL       := nul
+  OPEN       := start
 else
-  UNAME      ?= $(shell uname -s)
+  UNAME       = $(shell uname -s)
   ARCH       ?= $(shell uname -m)
   TARGET_EXT :=
   DEL        := rm 
@@ -64,6 +65,11 @@ else
   MKDIR       = mkdir -p $(1)
   GREP        = grep $(1) $(2) || true
   NULL       := /dev/null
+  ifeq ($(UNAME),Darwin)
+    OPEN     := open
+  else
+    OPEN     := xdg-open
+  endif
 endif
 
 
@@ -258,7 +264,12 @@ coverage: $(TEMP_DIR)/$(BUILD_TYPE)/coverage/index.html
 package: $(PACKAGE_NAME)
 	@$(call LOG, Finished creating package ---------)
 
-build_and_run: build run done
+$(OUTPUT): run
+
+open: $(OUTPUT)
+	$(OPEN) $<
+
+build_and_run: build run $(if $(OUTPUT),open) done
 
 release:
 	@$(MAKE) $(MAKE_FLAGS) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
