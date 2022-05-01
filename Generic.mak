@@ -81,41 +81,51 @@ PANDOC_FLAGS  = -f markdown --template $(PANDOC_TEMPLATE) --resource-path=$(GENM
 PANDOC_TEMPLATE = $(GENMAKE_DIR)pandoc/template.tex
 DOXYGEN       = doxygen
 GCOVR         = gcovr
-C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(ALL_INCLUDES:%=-I%)
+
+ALL_INCLUDES  ?= $(sort $(shell $(MAKE) -s MAKE_FLAGS=-s FULL_SOURCES_IN= DEPENDS1= DEPENDS= DIRECT_SRCS= ALL_INCLUDES= $(PASS_THRU_ARGS) includes exported_includes))
+ALL_INCLUDES_ := $(ALL_INCLUDES)
+C_FLAGS       = $(CFLAGS) $(BUILD_TYPE_FLAGS) $(DEFINES:%=-D%) $(ALL_INCLUDES_:%=-I%)
+
 CXX_FLAGS     = $(CXXFLAGS) $(C_FLAGS)
 LINK_FLAGS    = $(LFLAGS) $(BUILD_TYPE_FLAGS)
 LINK_LIBS     = $(LIBRARIES:%=-l%) $(LIBS)
 STRIP_FLAGS   = -S
-
+# MAKE_FLAGS    ?= -s
 
 ######################################################################
 ##  Project directories and files
 
+# $(info Updating $(PROJECT_FILE) deps)
+
 # BASE_DIR is set for sub-project builds and is the relative path to the sub-project
-BASE_DIR      =
 # output directories are prefixed with the sub-project paths to avoid collisions and for distinct intermediate targets
+BASE_DIR     ?=
 OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
 CUR_DIR       = $(realpath .)
 OBJS_DIR      = $(OUTPUT_DIR)/objs
 DEPS_DIR      = $(OUTPUT_DIR)/deps
 DOCS_DIR      = $(TEMP_DIR)/docs
-ALL_SOURCES   ?= $(sort $(shell $(MAKE) ALL_SOURCES= $(PASS_THRU_ARGS) direct_sources exported_sources))
-ALL_INCLUDES  ?= $(sort $(shell $(MAKE) ALL_SOURCES= ALL_INCLUDES= $(PASS_THRU_ARGS) includes exported_includes))
-FULL_SOURCES_IN ?= $(sort $(abspath $(shell $(MAKE) ALL_SOURCES= ALL_INCLUDES= FULL_SOURCES_IN= $(PASS_THRU_ARGS) sources exported_sources)))
-FULL_SOURCES   := $(FULL_SOURCES_IN)
+
+FULL_SOURCES_IN ?= $(shell $(MAKE) $(MAKE_FLAGS) ALL_SOURCES= DEPENDS= "ALL_INCLUDES=$(ALL_INCLUDES_)" FULL_SOURCES_IN= $(PASS_THRU_ARGS) sources exported_sources)
+FULL_SOURCES_ABS_IN := $(sort $(abspath $(FULL_SOURCES_IN)))
+ALL_SOURCES   ?= $(sort $(shell $(MAKE) $(MAKE_FLAGS) DEPENDS= DEPENDS1= ALL_SOURCES= FULL_SOURCES_IN= "ALL_INCLUDES=$(ALL_INCLUDES_)" $(PASS_THRU_ARGS) direct_sources exported_sources))
+FULL_SOURCES   := $(FULL_SOURCES_ABS_IN)
 ALL_SOURCES_CP := $(ALL_SOURCES)
 ABS_SOURCES   = $(sort $(abspath $(ALL_SOURCES_CP)))
 REL_SOURCES   = $(ABS_SOURCES:$(CUR_DIR)/%=%)
-
-# TODO: Can't make it work with full recursive sources - means for docs and tags, it won't have sub-project symbols etc
-FULL_CODE     = $(filter %.c %.cpp %.S,$(REL_SOURCES))
-
-# ALL includes .pro and Makefile files, full is recursive and includes .pro and Makefiles
-# FULL_CODE     = $(filter %.c %.cpp %.S,$(FULL_SOURCES:$(CUR_DIR)/%=%))
+DIRECT_SRCS   ?= $(SOURCES:%=$(BASE_DIR)%)
 
 CODE          = $(filter %.c %.cpp %.S,$(REL_SOURCES))
 OBJECTS       = $(CODE:%=$(OBJS_DIR)/%.o)
-DEPENDS       = $(OBJECTS:$(OBJS_DIR)/%.o=$(DEPS_DIR)/%.d)
+DEPENDS       ?= $(OBJECTS:$(OBJS_DIR)/%.o=$(DEPS_DIR)/%.d)
+
+CODE1          = $(filter %.c %.cpp %.S,$(DIRECT_SRCS))
+OBJECTS1       = $(CODE1:%=$(OBJS_DIR)/%.o)
+DEPENDS1      ?= $(OBJECTS1:$(OBJS_DIR)/%.o=$(DEPS_DIR)/%.d)
+
+# ALL includes .pro and Makefile files, full is recursive and includes .pro and Makefiles
+FULL_CODE     = $(filter %.h %.hpp %.c %.cpp %.S,$(sort $(FULL_SOURCES:$(CUR_DIR)/%=%)))
+
 SUBDIRS       = $(patsubst %/Makefile,%/subdir_target,$(filter %/Makefile,$(SOURCES:%=$(BASE_DIR)%)))
 SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(filter %.pro,$(SOURCES:%=$(BASE_DIR)%)))
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
@@ -127,7 +137,7 @@ COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
 GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-PROJECT_FILE  = $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
+PROJECT_FILE ?= $(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro))
 PACKAGE_NAME  = $(PROJECT).zip
 
 
@@ -137,7 +147,8 @@ PACKAGE_NAME  = $(PROJECT).zip
 BUILD_TYPE        = release
 BUILD_TYPE_FLAGS  = -DNDEBUG
 BUILD_TYPE_SUFFIX =
-PASS_THRU_ARGS    = DEPENDS= UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) # COMPILER=$(COMPILER) COMPILER_VER=$(COMPILER_VER)
+PASS_THRU_ARGS2    = UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) # COMPILER=$(COMPILER) COMPILER_VER=$(COMPILER_VER)
+PASS_THRU_ARGS    = PROJECT_FILE=$(PROJECT_FILE) BASE_DIR=$(BASE_DIR) $(PASS_THRU_ARGS2)
 
 all: release
 
@@ -245,16 +256,16 @@ package: $(PACKAGE_NAME)
 build_and_run: build run done
 
 release:
-	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
+	@$(MAKE) $(MAKE_FLAGS) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=release BUILD_TYPE_FLAGS="-O3 -DNDEBUG" BUILD_TYPE_SUFFIX="" build strip done
 
 debug:
-	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
+	@$(MAKE) $(MAKE_FLAGS) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=debug BUILD_TYPE_FLAGS="-O0 -g -DENABLE_DEBUG" BUILD_TYPE_SUFFIX=_d build_and_run
 
 profile:
-	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
+	@$(MAKE) $(MAKE_FLAGS) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=profile BUILD_TYPE_FLAGS="-O3 -g -DNDEBUG -DENABLE_BENCHMARKS" BUILD_TYPE_SUFFIX=_p build_and_run
 
 test:
-	@$(MAKE) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
+	@$(MAKE) $(MAKE_FLAGS) -f $(MAKEFILE) UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=test BUILD_TYPE_FLAGS="-O0 -g --coverage -DENABLE_UNIT_TESTS" BUILD_TYPE_SUFFIX=_t build verify coverage done
 
 $(PROJECT_FILE):
 	@$(info Generating project file as $@)
@@ -279,7 +290,7 @@ $(TAGS): $(FULL_CODE)
 ##  Implicit rules
 
 .SUFFIXES: # delete the default suffixes
-.SUFFIXES: .cpp .c
+.SUFFIXES: .cpp .c .d .o
 
 $(DEPS_DIR)/%.cpp.d: %.cpp $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
@@ -314,19 +325,17 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,touch $@)
 	$(if $(strip $(OBJECTS)),cp $@ $<,)
 
--include $(DEPENDS)
-
 
 ######################################################################
 ##  Sub-directories (recursive make)
 
 %/subdir_target:
 	@$(call LOG, $< $(patsubst %/subdir_target,%,$@) -----------)
-	@$(MAKE) -C $(patsubst %/subdir_target,%,$@) $(PASS_THRU_ARGS) $(BUILD_TYPE)
+	@$(MAKE) $(MAKE_FLAGS) -C $(patsubst %/subdir_target,%,$@) $(PASS_THRU_ARGS) $(BUILD_TYPE)
 
 %.subproject_target: %.pro
 	@$(call LOG, $< ---------------)
-	@$(MAKE) PROJECT_FILE=$< BASE_DIR="$(dir $<)" $(PASS_THRU_ARGS) $(BUILD_TYPE)
+	@$(MAKE) $(MAKE_FLAGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" $(PASS_THRU_ARGS2) $(BUILD_TYPE)
 
 
 ######################################################################
@@ -366,6 +375,9 @@ $(DOCS_DIR)/%.meta:
 $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.meta
 	@$(call MKDIR,$(dir $@))
 	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $@ --metadata-file=$(@:%.pdf=%.meta))
+	#$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $(@:%.pdf=%.tex) --metadata-file=$(@:%.pdf=%.meta))
+	#./fixsvg.sh ./.build/tmp $(@:%.pdf=%.tex)
+	#$(if $(shell which pdflatex),pdflatex -interaction=batchmode -output-directory $(dir $@) $(@:%.pdf=%.tex) -o $@)
 
 
 ######################################################################
@@ -390,7 +402,8 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(FULL_CODE) $(DOCS)
 
 $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(FULL_CODE) $(DOCS)
 	@$(call LOG, Doxygen ---------------------------)
-	@$(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
+	@# $(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
+	@$(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 > $(DOCS_DIR)/doxygen.log)
 
 
 ######################################################################
@@ -442,7 +455,7 @@ project:
 	@printf '$(PROJECT)\n┃\n'
 	$(call generate_tree_items,┃ ,┣━ Targets,    $(filter %,$(TARGET)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c %.cpp,$(FULL_SOURCES)))
-	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter-out /%,$(filter %.h %.hpp,$^)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter %.h %.hpp,$(FULL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Subprojects, $(filter %.pro,$(FULL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)) $(filter %.txt,$(DOCS)) $(filter %.html,$(DOCS)))
 	$(call generate_tree_items,  ,┃\n┗━ Project, $(wildcard $(filter-out %.d,$(MAKEFILE_LIST))))
@@ -538,20 +551,22 @@ MODULE_EXPORT_SOURCE_TARGETS=$(MODULE_PROS:%.pro=%.subproject_exported_sources)
 direct_includes:
 	@printf '$(INCLUDES:%=$(BASE_DIR)%) $(INCLUDEPATH:%=$(BASE_DIR)%) '
 direct_sources:
-	@printf '$(SOURCES:%=$(BASE_DIR)%) '
+	@printf ' $(sort $(abspath $(filter-out /%,$(filter %.S %.c %.cpp %.h %.hpp,$^)) $(filter %.S %.c %.cpp %.h %.hpp %.pro,$(SOURCES:%=$(BASE_DIR)%)) $(MODULE_PROS:%=$(BASE_DIR)%))) '
 direct_exported_includes:
 	@printf '$(EXPORTED_INCLUDES:%=$(BASE_DIR)%) '
 direct_exported_sources:
 	@printf '$(EXPORTED_SOURCES:%=$(BASE_DIR)%) '
 
-%.subproject_sources: %.pro
-	@$(MAKE) -s $(PASS_THRU_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" sources
+PASS_ARGS=$(MAKE_FLAGS) $(PASS_THRU_ARGS2) DEPENDS= ALL_SOURCES= FULL_SOURCES_IN= "ALL_INCLUDES=$(ALL_INCLUDES_)"
+
 %.subproject_includes: %.pro
-	@$(MAKE) -s $(PASS_THRU_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" includes
+	@$(MAKE) $(PASS_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" includes
+%.subproject_sources: %.pro
+	@$(MAKE) $(PASS_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" sources
 %.subproject_exported_includes: %.pro
-	@$(MAKE) -s $(PASS_THRU_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" direct_exported_includes
+	@$(MAKE) $(PASS_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" direct_exported_includes
 %.subproject_exported_sources: %.pro
-	@$(MAKE) -s $(PASS_THRU_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" direct_exported_sources
+	@$(MAKE) $(PASS_ARGS) PROJECT_FILE=$< BASE_DIR="$(dir $<)" direct_exported_sources
 
 # Recursively gather all the sources of all the descendant projects
 sources: direct_sources $(SUBPROJECT_SOURCE_TARGETS)
@@ -562,11 +577,13 @@ exported_includes: direct_exported_includes $(MODULE_EXPORT_INCLUDE_TARGETS)
 exported_sources: direct_exported_sources $(MODULE_EXPORT_SOURCE_TARGETS)
 
 # For debugging purposes, keep the depends files
-.PRECIOUS: $(DEPENDS)
+.PRECIOUS: $(DEPENDS) $(DEPENDS1)
 
 # Avoid looking for rules to generate Makefile
 Makefile: ;
 
 # Avoid looking for rules to generate our source files
 $(SOURCES): ;
+
+-include $(DEPENDS) $(DEPENDS1)
 
