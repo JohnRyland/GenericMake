@@ -392,7 +392,7 @@ $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.me
 	@$(call MKDIR,$(dir $@))
 	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $@ --metadata-file=$(@:%.pdf=%.meta))
 	#$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $(@:%.pdf=%.tex) --metadata-file=$(@:%.pdf=%.meta))
-	#./fixsvg.sh ./.build/tmp $(@:%.pdf=%.tex)
+	#$(GENMAKE_DIR)/fixsvg.sh ./.build/tmp $(@:%.pdf=%.tex)
 	#$(if $(shell which pdflatex),pdflatex -interaction=batchmode -output-directory $(dir $@) $(@:%.pdf=%.tex) -o $@)
 
 
@@ -435,6 +435,7 @@ $(TEST_REPORT): $(TARGET_BIN)
 	@mkdir -p $(dir $@)
 	@$(if $(wildcard $<), $< --help > /dev/null,)  # For code coverage reasons we invoke the help
 	$(if $(wildcard $<), @$(MAKE) $(patsubst %,$(TEST_XML_DIR)/%.xml,$(shell $< --list-tests)) > $@,touch $@)
+
 
 ######################################################################
 ##  Editor integrations
@@ -557,6 +558,10 @@ clean:
 
 .PHONY: $(FAKE_TARGETS)
 
+
+######################################################################
+##  Modules and Sub-project Target helpers
+
 MODULE_DIRS=$(dir $(MODULE_DEPS))
 MODULE_PROS=$(wildcard $(MODULE_DIRS:%/=%/*.pro))
 SUBPROJECT_SOURCE_TARGETS=$(SUBPROJECTS:%.subproject_target=%.subproject_sources)
@@ -591,6 +596,7 @@ includes: direct_includes $(SUBPROJECT_INCLUDE_TARGETS)
 # Non-recursively get the exported include paths and sources of the directly included modules
 exported_includes: direct_exported_includes $(MODULE_EXPORT_INCLUDE_TARGETS)
 exported_sources: direct_exported_sources $(MODULE_EXPORT_SOURCE_TARGETS)
+
 
 # For debugging purposes, keep the depends files
 .PRECIOUS: $(DEPENDS) $(DEPENDS1)
