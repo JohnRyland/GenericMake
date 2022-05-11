@@ -51,10 +51,23 @@ ifneq (,$(findstring Windows,$(OS)))
   DEL        := del /q
   RMDIR      := rmdir /s /q
   SEPERATOR  := $(subst /,\,/)
-  MKDIR       = if not exist $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
-  GREP        = 
-  NULL       := nul
-  OPEN       := start
+  # MKDIR       = IF NOT EXIST $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
+  # GREP        = 
+  # NULL       := nul
+  # OPEN       := start
+
+  # uname -s => Windows_NT
+  # uname -m => x86_64
+  # echo %OS% => Windows_NT
+  # echo %PROCESSOR_ARCHITECTURE% => AMD64
+
+  # The version of make being used even when launched from cmd.exe is not acting 
+  # as though the host is windows, so not sure if need to keep this logic to
+  # branch on OS containing Windows when we need to change MKDIR, NULL etc.
+  MKDIR       = mkdir -p $(1)
+  GREP        = grep
+  NULL       := /dev/null
+  OPEN       := cmd /c start
 else
   UNAME       = $(shell uname -s)
   ARCH       ?= $(shell uname -m)
@@ -149,7 +162,9 @@ GENMAKE_DIR  := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 SUB_BASENAME  = $(BASE_DIR)$(notdir $(BASE_DIR:%/=%))
 SUB_PROJECT_FILE = $(if $(wildcard $(SUB_BASENAME).pro),$(SUB_BASENAME).pro,$(firstword $(wildcard $(BASE_DIR)*.pro) $(SUB_BASENAME).pro))
 PROJECT_FILE ?= $(if $(FOR_FILE),$(SUB_PROJECT_FILE),$(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro)))
-PACKAGE_NAME  = $(PROJECT).zip
+
+VERSION       = 0.0.0
+PACKAGE_NAME  = $(PROJECT)-$(VERSION)-$(UNAME)-$(ARCH)-$(BUILD_TYPE).zip
 
 
 ######################################################################
@@ -413,7 +428,7 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(FULL_CODE) $(DOCS)
 	@echo 'HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css' >> $@
 	@echo 'PLANTUML_JAR_PATH      = $(if $(shell which plantuml),$(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g'))' >> $@
 	@echo 'HAVE_DOT               = $(if $(shell which dot),YES,NO)' >> $@
-	@echo 'DOT_PATH               = $(dir $(shell which dot))' >> $@
+	@echo 'DOT_PATH               = $(shell which dot)' >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
 $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(FULL_CODE) $(DOCS)
