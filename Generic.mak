@@ -165,6 +165,7 @@ PROJECT_FILE ?= $(if $(FOR_FILE),$(SUB_PROJECT_FILE),$(if $(wildcard $(BASENAME)
 
 VERSION       = 0.0.0
 PACKAGE_NAME  = $(PROJECT)-$(VERSION)-$(UNAME)-$(ARCH)-$(BUILD_TYPE).zip
+OUTPUT_FILE   = $(OUTPUT_DIR)/$(OUTPUT)
 
 
 ######################################################################
@@ -245,7 +246,7 @@ compiling:
 
 run: $(TARGET_BIN)
 	@$(call LOG, Running ---------------------------)
-	$(if $(wildcard $(TARGET_BIN)),$(TARGET_BIN) --debug && echo PASSED)
+	$(if $(wildcard $(TARGET_BIN)),cd $(OUTPUT_DIR) && $(abspath $(TARGET_BIN)) --debug && echo PASSED)
 
 todos:
 	@$(call LOG, Finding todos ---------------------)
@@ -279,9 +280,9 @@ coverage: $(TEMP_DIR)/$(BUILD_TYPE)/coverage/index.html
 package: $(PACKAGE_NAME)
 	@$(call LOG, Finished creating package ---------)
 
-$(OUTPUT): run
+$(OUTPUT_FILE): run
 
-open: $(OUTPUT)
+open: $(OUTPUT_FILE)
 	$(OPEN) $<
 
 build_and_run: build run $(if $(OUTPUT),open) done
