@@ -60,6 +60,7 @@ Here is a more complicated example:
 ```
 PROJECT   = Maths3D
 TARGET    = Maths3D
+VERSION   = 1.0.0
 BRIEF     = "Maths for Computer Graphics"
 LOGO      = docs/logo.svg
 DOCS      = docs/README.md
@@ -130,6 +131,7 @@ This is a list of the makefile targets that can be used:
 This is a list of variables in .pro files which are used:
 
  - PROJECT: Name of the project
+ - VERSION: Version of the project
  - BRIEF: Short description about the project (optional)
  - LOGO: Logo/icon associated with the project (optional)
  - TARGET: Name of the executable (optional)
