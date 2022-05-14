@@ -44,45 +44,68 @@
 ######################################################################
 ##  Cross-platform settings
 
-ifneq (,$(findstring Windows,$(OS)))
-  UNAME      := Windows
+# Possible detections:
+#   uname -s => Windows_NT                  - From cmd.exe  (uname from scoop)
+#   uname -s => MINGW64_NT-10.0-19044       - From git-bash.exe  (uname from msys)
+#   uname -m => x86_64                      - From either
+#   echo %OS% => Windows_NT                 - From either
+#   echo %PROCESSOR_ARCHITECTURE% => AMD64  - Might depend
+
+UNAME ?= $(shell uname -s)
+
+# Detect the platform
+ifeq ($(OS),Windows_NT)
+  PLATFORM   := Windows
+  # TODO: detect if we have uname or not
+else
+  PLATFORM   := $(UNAME)
+endif
+
+# The version of make being used even when launched from cmd.exe is not acting 
+# as though the host is windows, so not sure if need to keep this logic to
+# branch on OS containing Windows when we need to change MKDIR, NULL etc.
+# - Seems to depend on which make is called. There is mingw's make, and there
+#   is another in scoop\shims\make.exe
+# May need to test both
+# - actually there are 4 combos to try. with the mingw make + mingw uname,
+#   with scoop make + mingw uname, etc
+#ifeq ($(UNAME),Windows_NT)
+ifeq ($(UNAME),NoMingwToolsInstalled)
   ARCH       := $(PROCESSOR_ARCHITECTURE)
-  TARGET_EXT := .exe
   DEL        := del /q
   RMDIR      := rmdir /s /q
-  SEPERATOR  := $(subst /,\,/)
-  # MKDIR       = IF NOT EXIST $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
-  # GREP        = 
-  # NULL       := nul
-  # OPEN       := start
-
-  # uname -s => Windows_NT
-  # uname -m => x86_64
-  # echo %OS% => Windows_NT
-  # echo %PROCESSOR_ARCHITECTURE% => AMD64
-
-  # The version of make being used even when launched from cmd.exe is not acting 
-  # as though the host is windows, so not sure if need to keep this logic to
-  # branch on OS containing Windows when we need to change MKDIR, NULL etc.
-  MKDIR       = mkdir -p $(1)
-  GREP        = grep
-  NULL       := /dev/null
-  OPEN       := cmd /c start
+  MKDIR       = IF NOT EXIST $(subst /,\,$(1)) mkdir $(subst /,\,$(1))
+  GREP        = 
+  NULL       := nul
+  WHICH       = $(shell where $(1) 2> nul)
 else
-  UNAME       = $(shell uname -s)
   ARCH       ?= $(shell uname -m)
-  TARGET_EXT :=
   DEL        := rm 
   RMDIR      := rm -rf
-  SEPERATOR  := /
   MKDIR       = mkdir -p $(1)
   GREP        = grep $(1) $(2) || true
+  WHICH       = $(shell which $(1))
   NULL       := /dev/null
-  ifeq ($(UNAME),Darwin)
-    OPEN     := open
-  else
-    OPEN     := xdg-open
-  endif
+endif
+
+# PLATFORM and ARCH are the host values
+# TARGET_PLATFORM and TARGET_ARCH are the target's values
+
+# Assume not cross-building as the default
+TARGET_PLATFORM  = $(PLATFORM)
+TARGET_ARCH      = $(ARCH)
+TARGET_EXT      :=
+
+ifeq ($(PLATFORM),Darwin)
+	OPEN     := open $(1)
+endif
+ifeq ($(PLATFORM),Linux)
+	OPEN     := xdg-open $(1)
+endif
+ifeq ($(PLATFORM),Windows)
+  TARGET_EXT := .exe
+	#OPEN     := start $(1)
+	OPEN     := cmd /c start $(1)
 endif
 
 
@@ -122,11 +145,10 @@ STRIP_FLAGS   = -S
 # BASE_DIR is set for sub-project builds and is the relative path to the sub-project
 # output directories are prefixed with the sub-project paths to avoid collisions and for distinct intermediate targets
 BASE_DIR     ?= $(if $(FOR_FILE),$(patsubst $(CURRENT_DIR)/%,%/,$(abspath $(dir $(FOR_FILE)))))
-OUTPUT_DIR    = $(TEMP_DIR)/$(BUILD_TYPE)
 CUR_DIR       = $(realpath .)
 OBJS_DIR      = $(OUTPUT_DIR)/objs
 DEPS_DIR      = $(OUTPUT_DIR)/deps
-DOCS_DIR      = $(TEMP_DIR)/docs
+DOCS_DIR      = $(OUTPUT_DIR)/docs
 
 FULL_SOURCES_IN ?= $(shell $(MAKE) $(MAKE_FLAGS) ALL_SOURCES= DEPENDS= "ALL_INCLUDES=$(ALL_INCLUDES_)" FULL_SOURCES_IN= $(PASS_THRU_ARGS) sources exported_sources)
 FULL_SOURCES_ABS_IN := $(sort $(abspath $(FULL_SOURCES_IN)))
@@ -153,7 +175,6 @@ SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(filter %.pro,$(SOURCES:%=
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
-PLATFORM      = $(UNAME)
 COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|GCC' | head -n 1)
 COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
@@ -164,7 +185,7 @@ SUB_PROJECT_FILE = $(if $(wildcard $(SUB_BASENAME).pro),$(SUB_BASENAME).pro,$(fi
 PROJECT_FILE ?= $(if $(FOR_FILE),$(SUB_PROJECT_FILE),$(if $(wildcard $(BASENAME).pro),$(BASENAME).pro,$(firstword $(wildcard *.pro) $(BASENAME).pro)))
 
 VERSION       = 0.0.0
-PACKAGE_NAME  = $(PROJECT)-$(VERSION)-$(UNAME)-$(ARCH)-$(BUILD_TYPE).zip
+PACKAGE_NAME  = $(PROJECT)-$(VERSION)-$(TARGET_PLATFORM)-$(TARGET_ARCH)-$(BUILD_TYPE).zip
 OUTPUT_FILE   = $(OUTPUT_DIR)/$(OUTPUT)
 
 
@@ -174,10 +195,25 @@ OUTPUT_FILE   = $(OUTPUT_DIR)/$(OUTPUT)
 BUILD_TYPE        = release
 BUILD_TYPE_FLAGS  = -DNDEBUG
 BUILD_TYPE_SUFFIX =
-PASS_THRU_ARGS2    = UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX) # COMPILER=$(COMPILER) COMPILER_VER=$(COMPILER_VER)
+PASS_THRU_ARGS2   = UNAME=$(UNAME) ARCH=$(ARCH) BUILD_TYPE=$(BUILD_TYPE) BUILD_TYPE_FLAGS="$(BUILD_TYPE_FLAGS)" BUILD_TYPE_SUFFIX=$(BUILD_TYPE_SUFFIX)
 PASS_THRU_ARGS    = PROJECT_FILE=$(PROJECT_FILE) BASE_DIR=$(BASE_DIR) $(PASS_THRU_ARGS2)
 
 all: release
+
+
+######################################################################
+##  Output destinations
+
+TARGET_DIR   = bin
+TEMP_DIR     = .build
+OUTPUT_DIR  := $(TEMP_DIR)/$(PLATFORM)-$(BUILD_TYPE)
+MODULES_DIR  = .modules
+TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(BUILD_TYPE_SUFFIX)$(TARGET_EXT)
+TAGS         = $(TEMP_DIR)/tags
+TEST_REPORT  = $(OUTPUT_DIR)/Testing/$(BASE_DIR)test-report.txt
+TEST_XML_DIR = $(OUTPUT_DIR)/Testing/$(BASE_DIR)/xml
+# E is variable used for preserving leading whitespace when calling $(info)
+E:=
 
 
 ######################################################################
@@ -188,19 +224,6 @@ all: release
 # Allow variables to be expanded again on a second pass
 .SECONDEXPANSION:
 
-
-######################################################################
-##  Output destinations
-
-TARGET_DIR   = bin
-TEMP_DIR     = .build
-MODULES_DIR  = .modules
-TARGET_BIN   = $(TARGET_DIR)/$(TARGET)$(BUILD_TYPE_SUFFIX)$(TARGET_EXT)
-TAGS         = $(TEMP_DIR)/tags
-TEST_REPORT  = $(TEMP_DIR)/$(BUILD_TYPE)/Testing/$(BASE_DIR)test-report.txt
-TEST_XML_DIR = $(TEMP_DIR)/$(BUILD_TYPE)/Testing/$(BASE_DIR)/xml
-# E is variable used for preserving leading whitespace when calling $(info)
-E:=
 
 ######################################################################
 ##  Package/Module management
@@ -274,7 +297,7 @@ doxygen: $(DOCS_DIR)/html/index.html
 strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 	@$(call LOG, Stripped --------------------------)
 
-coverage: $(TEMP_DIR)/$(BUILD_TYPE)/coverage/index.html
+coverage: $(OUTPUT_DIR)/coverage/index.html
 	@$(call LOG, Finished creating coverage report -)
 
 package: $(PACKAGE_NAME)
@@ -283,7 +306,7 @@ package: $(PACKAGE_NAME)
 $(OUTPUT_FILE): run
 
 open: $(OUTPUT_FILE)
-	$(OPEN) $<
+	$(call OPEN, $<)
 
 build_and_run: build run $(if $(OUTPUT),open) done
 
@@ -315,7 +338,7 @@ $(PROJECT_FILE):
 $(TAGS): $(FULL_CODE)
 	@$(call LOG, Updating tags ---------------------)
 	@$(call MKDIR,$(dir $@))
-	@$(if $(shell which $(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
+	@$(if $(call WHICH,$(CTAGS)),$(if $^,$(CTAGS) --tag-relative=yes --c++-kinds=+pl --fields=+iaS --extra=+q --language-force=C++ -f $@ $^ 2> $(NULL),),)
 
 
 ######################################################################
@@ -354,7 +377,7 @@ $(TARGET_BIN): $(MODULE_DEPS) $(OBJECTS) $(DEPENDS) # $(OBJECTS)
 $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Stripping -------------------------)
-	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,touch $@)
+	$(if $(strip $(OBJECTS)),$(STRIP) $(STRIP_FLAGS) $< -o $@,$(if $(TARGET),touch $@,))
 	$(if $(strip $(OBJECTS)),cp $@ $<,)
 
 
@@ -373,11 +396,11 @@ $(OUTPUT_DIR)/$(TARGET_BIN)_stripped: $(TARGET_BIN)
 ######################################################################
 ##  Coverage
 
-$(TEMP_DIR)/$(BUILD_TYPE)/coverage/index.html: $(TEST_REPORT)
+$(OUTPUT_DIR)/coverage/index.html: $(TEST_REPORT)
 	@$(call MKDIR,$(dir $@))
 	@$(call LOG, Generating coverage report --------)
-	$(if $(strip $(OBJECTS)),$(if $(shell which $(GCOVR)),$(GCOVR) --html-details --object-directory $(OBJS_DIR) -o $@),touch $@)
-	cat $(GENMAKE_DIR)gcovr/index.css >> $(TEMP_DIR)/$(BUILD_TYPE)/coverage/index.css
+	$(if $(strip $(OBJECTS)),$(if $(call WHICH,$(GCOVR)),$(GCOVR) --html-details --object-directory $(OBJS_DIR) -o $@),touch $@)
+	cat $(GENMAKE_DIR)gcovr/index.css >> $(OUTPUT_DIR)/coverage/index.css
 
 
 ######################################################################
@@ -385,7 +408,7 @@ $(TEMP_DIR)/$(BUILD_TYPE)/coverage/index.html: $(TEST_REPORT)
 
 $(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 	@$(call LOG, Creating package ------------------)
-	$(if $(shell which zip),zip -j $(PACKAGE_NAME) $^)
+	$(if $(call WHICH,zip),zip -j $(PACKAGE_NAME) $^)
 
 
 ######################################################################
@@ -393,7 +416,7 @@ $(PACKAGE_NAME): $(PDFS) $(TARGET_BIN)
 
 $(DOCS_DIR)/logo.pdf: $(LOGO)
 	@$(call MKDIR,$(dir $@))
-	$(if $(LOGO),$(if $(shell which rsvg-convert),rsvg-convert -f pdf $< -o $@))
+	$(if $(LOGO),$(if $(call WHICH,rsvg-convert),rsvg-convert -f pdf $< -o $@))
 	@touch $@
 
 $(DOCS_DIR)/%.meta:
@@ -406,10 +429,10 @@ $(DOCS_DIR)/%.meta:
 
 $(DOCS_DIR)/%.pdf: %.md $(PANDOC_TEMPLATE) $(DOCS_DIR)/logo.pdf $(DOCS_DIR)/%.meta
 	@$(call MKDIR,$(dir $@))
-	$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $@ --metadata-file=$(@:%.pdf=%.meta))
-	#$(if $(shell which $(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $(@:%.pdf=%.tex) --metadata-file=$(@:%.pdf=%.meta))
+	$(if $(call WHICH,$(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $@ --metadata-file=$(@:%.pdf=%.meta))
+	#$(if $(call WHICH,$(PANDOC)),$(PANDOC) $(PANDOC_FLAGS) $< --resource-path=./:./$(dir $<) -o $(@:%.pdf=%.tex) --metadata-file=$(@:%.pdf=%.meta))
 	#$(GENMAKE_DIR)/fixsvg.sh ./.build/tmp $(@:%.pdf=%.tex)
-	#$(if $(shell which pdflatex),pdflatex -interaction=batchmode -output-directory $(dir $@) $(@:%.pdf=%.tex) -o $@)
+	#$(if $(call WHICH,pdflatex),pdflatex -interaction=batchmode -output-directory $(dir $@) $(@:%.pdf=%.tex) -o $@)
 
 
 ######################################################################
@@ -427,15 +450,15 @@ $(DOCS_DIR)/Doxyfile: $(PROJECT_FILE) $(FULL_CODE) $(DOCS)
 	@echo 'HTML_HEADER            = $(GENMAKE_DIR)doxygen/header.html' >> $@
 	@echo 'HTML_FOOTER            = $(GENMAKE_DIR)doxygen/footer.html' >> $@
 	@echo 'HTML_EXTRA_STYLESHEET  = $(GENMAKE_DIR)doxygen/style.css' >> $@
-	@echo 'PLANTUML_JAR_PATH      = $(if $(shell which plantuml),$(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g'))' >> $@
-	@echo 'HAVE_DOT               = $(if $(shell which dot),YES,NO)' >> $@
-	@echo 'DOT_PATH               = $(shell which dot)' >> $@
+	@echo 'PLANTUML_JAR_PATH      = $(if $(call WHICH,plantuml),$(shell cat `which plantuml` | grep '/plantuml.jar' | sed 's/.* \(.*plantuml.jar\).*/\1/g'))' >> $@
+	@echo 'HAVE_DOT               = $(if $(call WHICH,dot),YES,NO)' >> $@
+	@echo 'DOT_PATH               = $(dir $(call WHICH,dot))' >> $@
 	@cat $(GENMAKE_DIR)/doxygen/doxyfile.ini >> $@
 
 $(DOCS_DIR)/html/index.html: $(DOCS_DIR)/Doxyfile $(FULL_CODE) $(DOCS)
 	@$(call LOG, Doxygen ---------------------------)
-	@# $(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
-	@$(if $(shell which $(DOXYGEN)),$(DOXYGEN) $< 2>&1 > $(DOCS_DIR)/doxygen.log)
+	@# $(if $(call WHICH,$(DOXYGEN)),$(DOXYGEN) $< 2>&1 | sed 's|${PWD}/\(.*\)|\1|' > $(DOCS_DIR)/doxygen.log)
+	@$(if $(call WHICH,$(DOXYGEN)),$(DOXYGEN) $< 2>&1 > $(DOCS_DIR)/doxygen.log)
 
 
 ######################################################################
@@ -549,13 +572,15 @@ help:
 info:
 	@$(info $E)
 	@$(info $E Info:)
-	@$(info $E   BASENAME     = $(BASENAME))
-	@$(info $E   MAKEFILE_DIR = $(MAKEFILE_DIR))
-	@$(info $E   PROJECT_FILE = $(PROJECT_FILE))
-	@$(info $E   PLATFORM     = $(PLATFORM))
-	@$(info $E   ARCH         = $(ARCH))
-	@$(info $E   COMPILER     = $(COMPILER))
-	@$(info $E   VERSION      = $(COMPILER_VER))
+	@$(info $E   BASENAME        = $(BASENAME))
+	@$(info $E   MAKEFILE_DIR    = $(MAKEFILE_DIR))
+	@$(info $E   PROJECT_FILE    = $(PROJECT_FILE))
+	@$(info $E   PLATFORM        = $(PLATFORM))
+	@$(info $E   ARCH            = $(ARCH))
+	@$(info $E   TARGET_PLATFORM = $(TARGET_PLATFORM))
+	@$(info $E   TARGET_ARCH     = $(TARGET_ARCH))
+	@$(info $E   COMPILER        = $(COMPILER))
+	@$(info $E   VERSION         = $(COMPILER_VER))
 	@$(info $E)
 	@$(info $E Make targets:)
 	@$(info $E   $(shell $(MAKE_TARGETS)))
@@ -570,7 +595,7 @@ info:
 
 
 clean:
-	$(DEL) $(wildcard $(subst /,$(SEPERATOR),$(TAGS) $(OBJECTS) $(PDFS) $(DEPENDS) $(TARGET_BIN)))
+	$(DEL) $(wildcard $(TAGS) $(OBJECTS) $(PDFS) $(DEPENDS) $(TARGET_BIN))
 
 .PHONY: $(FAKE_TARGETS)
 
