@@ -52,7 +52,7 @@
 #   echo %OS% => Windows_NT                 - From either
 #   echo %PROCESSOR_ARCHITECTURE% => AMD64  - Might depend
 #  macOS:
-#   uname -s => Mac        - From make.exe
+#   $(UNAME) => Mac        - From make.exe
 #   uname -s => Darwin     - From sh
 
 UNAME = $(shell uname -s)
