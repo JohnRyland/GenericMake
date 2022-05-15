@@ -45,13 +45,17 @@
 ##  Cross-platform settings
 
 # Possible detections:
+#  Windows:
 #   uname -s => Windows_NT                  - From cmd.exe  (uname from scoop)
 #   uname -s => MINGW64_NT-10.0-19044       - From git-bash.exe  (uname from msys)
 #   uname -m => x86_64                      - From either
 #   echo %OS% => Windows_NT                 - From either
 #   echo %PROCESSOR_ARCHITECTURE% => AMD64  - Might depend
+#  macOS:
+#   uname -s => Mac        - From make.exe
+#   uname -s => Darwin     - From sh
 
-UNAME ?= $(shell uname -s)
+UNAME = $(shell uname -s)
 
 # Detect the platform
 ifeq ($(OS),Windows_NT)
