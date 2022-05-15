@@ -112,13 +112,12 @@ endif
 ######################################################################
 ##  Compiler, tools and options
 
-CC            = cc
-CXX           = c++
-LINK          = c++
-STRIP         = strip
-LINKER        = c++
-CTAGS         = ctags
-PANDOC        = pandoc
+CC           ?= gcc
+CXX          ?= c++
+STRIP        ?= strip
+LINKER       ?= c++
+CTAGS        ?= ctags
+PANDOC       ?= pandoc
 PANDOC_FLAGS  = -f markdown --template $(PANDOC_TEMPLATE) --resource-path=$(GENMAKE_DIR)pandoc
 PANDOC_TEMPLATE = $(GENMAKE_DIR)pandoc/template.tex
 DOXYGEN       = doxygen
@@ -290,9 +289,18 @@ docs:
 
 pdfs: $(PDFS)
 
-build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) modules $(MODULE_DEPS) docs pdfs doxygen compiling $(TARGET_BIN) $(ADDITIONAL_DEPS) $(SUBPROJECTS) todos
+build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) externals documentation compile $(SUBPROJECTS) todos
 
 doxygen: $(DOCS_DIR)/html/index.html
+
+compile: compiling $(TARGET_BIN) $(ADDITIONAL_DEPS)
+       @$(call LOG, Finished compiling ----------------)
+
+externals: modules $(MODULE_DEPS)
+       @$(call LOG, Finished getting modules ----------)
+
+documentation: docs # pdfs doxygen
+       @$(call LOG, Finished creating documentation ---)
 
 strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 	@$(call LOG, Stripped --------------------------)
