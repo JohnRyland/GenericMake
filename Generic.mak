@@ -294,13 +294,13 @@ build: $(PROJECT_FILE) $(SUBDIRS) $(TAGS) externals documentation compile $(SUBP
 doxygen: $(DOCS_DIR)/html/index.html
 
 compile: compiling $(TARGET_BIN) $(ADDITIONAL_DEPS)
-       @$(call LOG, Finished compiling ----------------)
+  @$(call LOG, Finished compiling ----------------)
 
 externals: modules $(MODULE_DEPS)
-       @$(call LOG, Finished getting modules ----------)
+  @$(call LOG, Finished getting modules ----------)
 
 documentation: docs # pdfs doxygen
-       @$(call LOG, Finished creating documentation ---)
+  @$(call LOG, Finished creating documentation ---)
 
 strip: $(OUTPUT_DIR)/$(TARGET_BIN)_stripped
 	@$(call LOG, Stripped --------------------------)
