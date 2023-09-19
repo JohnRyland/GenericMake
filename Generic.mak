@@ -338,7 +338,7 @@ $(PROJECT_FILE):
 	@$(info Generating project file as $@)
 	@echo 'PROJECT   = $(BASENAME)' > $@
 	@echo 'TARGET    = $(BASENAME)' >> $@
-	@echo 'SOURCES   = $(wildcard *.c *.cpp)' >> $@
+	@echo 'SOURCES   = $(wildcard *.c *.cpp *.S)' >> $@
 	@echo 'DOCS      = $(wildcard *.md *.txt *.html)' >> $@
 	@echo 'DEFINES   = ' >> $@
 	@echo 'INCLUDES  = ' >> $@
@@ -357,7 +357,7 @@ $(TAGS): $(FULL_CODE)
 ##  Implicit rules
 
 .SUFFIXES: # delete the default suffixes
-.SUFFIXES: .cpp .c .d .o
+.SUFFIXES: .cpp .c .S .d .o
 
 $(DEPS_DIR)/%.cpp.d: %.cpp $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
@@ -367,11 +367,19 @@ $(DEPS_DIR)/%.c.d: %.c $(MODULE_DEPS)
 	@$(call MKDIR,$(dir $@))
 	@$(CC) $(C_FLAGS) -MT $(patsubst %.c, $(OBJS_DIR)/%.c.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MMD -E $< -MF $@ > $(NULL)
 
+$(DEPS_DIR)/%.S.d: %.S $(MODULE_DEPS)
+	@$(call MKDIR,$(dir $@))
+	@$(CC) $(C_FLAGS) -MT $(patsubst %.S, $(OBJS_DIR)/%.S.o, $<) -MQ dependancies -MQ $(TAGS) -MQ direct_sources -MQ project -MMD -E $< -MF $@ > $(NULL)
+
 $(OBJS_DIR)/%.cpp.o: %.cpp $(DEPS_DIR)/%.cpp.d
 	@$(call MKDIR,$(dir $@))
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
 $(OBJS_DIR)/%.c.o: %.c $(DEPS_DIR)/%.c.d
+	@$(call MKDIR,$(dir $@))
+	$(CC) $(C_FLAGS) -c $< -o $@
+
+$(OBJS_DIR)/%.S.o: %.S $(DEPS_DIR)/%.S.d
 	@$(call MKDIR,$(dir $@))
 	$(CC) $(C_FLAGS) -c $< -o $@
 
@@ -522,7 +530,7 @@ endef
 project:
 	@printf '$(PROJECT)\n┃\n'
 	$(call generate_tree_items,┃ ,┣━ Targets,    $(filter %,$(TARGET)))
-	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c %.cpp,$(FULL_SOURCES)))
+	$(call generate_tree_items,┃ ,┃\n┣━ Sources, $(filter %.c %.cpp %.S,$(FULL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Headers, $(filter %.h %.hpp,$(FULL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Subprojects, $(filter %.pro,$(FULL_SOURCES)))
 	$(call generate_tree_items,┃ ,┃\n┣━ Docs,    $(filter %.md,$(DOCS)) $(filter %.txt,$(DOCS)) $(filter %.html,$(DOCS)))
