@@ -101,15 +101,15 @@ TARGET_ARCH      = $(ARCH)
 TARGET_EXT      :=
 
 ifeq ($(PLATFORM),Darwin)
-	OPEN     := open $(1)
+  OPEN       := open $(1)
 endif
 ifeq ($(PLATFORM),Linux)
-	OPEN     := xdg-open $(1)
+  OPEN       := xdg-open $(1)
 endif
 ifeq ($(PLATFORM),Windows)
   TARGET_EXT := .exe
-	#OPEN     := start $(1)
-	OPEN     := cmd /c start $(1)
+  OPEN       := cmd /c start $(1)
+  CC          = gcc
 endif
 
 
@@ -117,9 +117,9 @@ endif
 ##  Compiler, tools and options
 
 CC           ?= gcc
-CXX          ?= c++
+CXX          ?= g++
 STRIP        ?= strip
-LINKER       ?= c++
+LINKER       ?= g++
 CTAGS        ?= ctags
 PANDOC       ?= pandoc
 PANDOC_FLAGS  = -f markdown --template $(PANDOC_TEMPLATE) --resource-path=$(GENMAKE_DIR)pandoc
@@ -178,7 +178,7 @@ SUBPROJECTS   = $(patsubst %.pro,%.subproject_target,$(filter %.pro,$(SOURCES:%=
 PDFS          = $(patsubst %.md,$(DOCS_DIR)/%.pdf,$(DOCS))
 CURRENT_DIR   = $(patsubst %/,%,$(abspath ./))
 BASENAME      = $(notdir $(CURRENT_DIR))
-COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|GCC' | head -n 1)
+COMPILER      = $(shell $(CXX) --version | tr [a-z] [A-Z] | grep -o -i 'CLANG\|GCC\|MINGW' | head -n 1)
 COMPILER_VER  = $(shell $(CXX) --version | grep -o "[0-9]*\.[0-9]" | head -n 1)
 MAKEFILE      = $(abspath $(firstword $(MAKEFILE_LIST)))
 MAKEFILE_DIR  = $(notdir $(patsubst %/,%,$(dir $(MAKEFILE))))
